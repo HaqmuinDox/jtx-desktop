@@ -1,22 +1,15 @@
 "use strict";
 const electron = require("electron");
-electron.contextBridge.exposeInMainWorld("ipcRenderer", {
-  on(...args) {
-    const [channel, listener] = args;
-    return electron.ipcRenderer.on(channel, (event, ...args2) => listener(event, ...args2));
+electron.contextBridge.exposeInMainWorld("api", {
+  entries: {
+    getAll: (filters) => electron.ipcRenderer.invoke("entries:getAll", filters),
+    getById: (id) => electron.ipcRenderer.invoke("entries:getById", id),
+    create: (entry) => electron.ipcRenderer.invoke("entries:create", entry),
+    update: (id, fields) => electron.ipcRenderer.invoke("entries:update", id, fields),
+    delete: (id) => electron.ipcRenderer.invoke("entries:delete", id)
   },
-  off(...args) {
-    const [channel, ...omit] = args;
-    return electron.ipcRenderer.off(channel, ...omit);
-  },
-  send(...args) {
-    const [channel, ...omit] = args;
-    return electron.ipcRenderer.send(channel, ...omit);
-  },
-  invoke(...args) {
-    const [channel, ...omit] = args;
-    return electron.ipcRenderer.invoke(channel, ...omit);
+  collections: {
+    getAll: () => electron.ipcRenderer.invoke("collections:getAll"),
+    upsert: (collection) => electron.ipcRenderer.invoke("collections:upsert", collection)
   }
-  // You can expose other APTs you need here.
-  // ...
 });

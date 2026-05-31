@@ -1,24 +1,22 @@
-import { ipcRenderer, contextBridge } from 'electron'
+import { contextBridge, ipcRenderer } from 'electron'
 
-// --------- Expose some API to the Renderer process ---------
-contextBridge.exposeInMainWorld('ipcRenderer', {
-  on(...args: Parameters<typeof ipcRenderer.on>) {
-    const [channel, listener] = args
-    return ipcRenderer.on(channel, (event, ...args) => listener(event, ...args))
-  },
-  off(...args: Parameters<typeof ipcRenderer.off>) {
-    const [channel, ...omit] = args
-    return ipcRenderer.off(channel, ...omit)
-  },
-  send(...args: Parameters<typeof ipcRenderer.send>) {
-    const [channel, ...omit] = args
-    return ipcRenderer.send(channel, ...omit)
-  },
-  invoke(...args: Parameters<typeof ipcRenderer.invoke>) {
-    const [channel, ...omit] = args
-    return ipcRenderer.invoke(channel, ...omit)
-  },
-
-  // You can expose other APTs you need here.
-  // ...
+contextBridge.exposeInMainWorld('api', {
+    entries: {
+        getAll:   (filters?: { type?: string; collection?: string }) =>
+            ipcRenderer.invoke('entries:getAll', filters),
+        getById:  (id: string) =>
+            ipcRenderer.invoke('entries:getById', id),
+        create:   (entry: Record<string, unknown>) =>
+            ipcRenderer.invoke('entries:create', entry),
+        update:   (id: string, fields: Record<string, unknown>) =>
+            ipcRenderer.invoke('entries:update', id, fields),
+        delete:   (id: string) =>
+            ipcRenderer.invoke('entries:delete', id),
+    },
+    collections: {
+        getAll:   () =>
+            ipcRenderer.invoke('collections:getAll'),
+        upsert:   (collection: Record<string, unknown>) =>
+            ipcRenderer.invoke('collections:upsert', collection),
+    },
 })
