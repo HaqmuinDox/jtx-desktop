@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { useAppStore } from './store/App'
+import { useAppStore } from './store/app'
 import { Sidebar } from './components/Sidebar'
 import { JournalsView } from './components/JournalsView'
 import { NotesView } from './components/NotesView'

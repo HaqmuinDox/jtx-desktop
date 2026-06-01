@@ -1,8 +1,10 @@
-import { ipcMain } from 'electron'
+import { ipcMain, safeStorage, app  } from 'electron'
 import { getDb } from './db'
 import { randomUUID } from 'node:crypto'
 import { sync, getSyncStatus, setCredentials, startSyncInterval } from './sync/engine'
 import { testConnection } from './sync/caldav'
+import path from 'node:path'
+import fs from 'node:fs'
 
 export function registerIpcHandlers() {
 
@@ -132,5 +134,41 @@ export function registerIpcHandlers() {
 
     ipcMain.handle('sync:testConnection', async (_event, creds) => {
         return await testConnection(creds)
+    })
+
+    // ── Credentials ───────────────────────────────────────────
+
+    ipcMain.handle('credentials:save', (_event, creds: Record<string, string>) => {
+        try {
+            const credPath = path.join(app.getPath('userData'), 'credentials.enc')
+            const plain    = JSON.stringify(creds)
+            if (safeStorage.isEncryptionAvailable()) {
+                const encrypted = safeStorage.encryptString(plain)
+                fs.writeFileSync(credPath, encrypted)
+            } else {
+                // Fallback: store as plain text if OS encryption unavailable
+                fs.writeFileSync(credPath, plain, 'utf-8')
+            }
+            return { ok: true }
+        } catch (err) {
+            const message = err instanceof Error ? err.message : 'Unknown error'
+            return { ok: false, error: message }
+        }
+    })
+
+    ipcMain.handle('credentials:load', () => {
+        try {
+            const credPath = path.join(app.getPath('userData'), 'credentials.enc')
+            if (!fs.existsSync(credPath)) return null
+            const raw = fs.readFileSync(credPath)
+            if (safeStorage.isEncryptionAvailable()) {
+                const decrypted = safeStorage.decryptString(Buffer.from(raw))
+                return JSON.parse(decrypted)
+            } else {
+                return JSON.parse(raw.toString('utf-8'))
+            }
+        } catch (_e) {
+            return null
+        }
     })
 }
