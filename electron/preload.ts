@@ -19,4 +19,14 @@ contextBridge.exposeInMainWorld('api', {
         upsert:   (collection: Record<string, unknown>) =>
             ipcRenderer.invoke('collections:upsert', collection),
     },
+    sync: {
+        getStatus:      () =>
+            ipcRenderer.invoke('sync:getStatus'),
+        now:            () =>
+            ipcRenderer.invoke('sync:now'),
+        setCredentials: (creds: Record<string, string>) =>
+            ipcRenderer.invoke('sync:setCredentials', creds),
+        testConnection: (creds: Record<string, string>) =>
+            ipcRenderer.invoke('sync:testConnection', creds),
+    },
 })

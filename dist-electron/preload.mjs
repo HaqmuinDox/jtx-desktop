@@ -11,5 +11,11 @@ electron.contextBridge.exposeInMainWorld("api", {
   collections: {
     getAll: () => electron.ipcRenderer.invoke("collections:getAll"),
     upsert: (collection) => electron.ipcRenderer.invoke("collections:upsert", collection)
+  },
+  sync: {
+    getStatus: () => electron.ipcRenderer.invoke("sync:getStatus"),
+    now: () => electron.ipcRenderer.invoke("sync:now"),
+    setCredentials: (creds) => electron.ipcRenderer.invoke("sync:setCredentials", creds),
+    testConnection: (creds) => electron.ipcRenderer.invoke("sync:testConnection", creds)
   }
 });

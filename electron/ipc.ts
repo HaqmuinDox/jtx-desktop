@@ -1,6 +1,8 @@
 import { ipcMain } from 'electron'
 import { getDb } from './db'
 import { randomUUID } from 'node:crypto'
+import { sync, getSyncStatus, setCredentials, startSyncInterval } from './sync/engine'
+import { testConnection } from './sync/caldav'
 
 export function registerIpcHandlers() {
 
@@ -110,5 +112,25 @@ export function registerIpcHandlers() {
       WHERE id = @id
     `).run({ updated_at: new Date().toISOString(), id })
         return { ok: true }
+    })
+
+    // ── Sync ─────────────────────────────────────────────────────────────────
+
+    ipcMain.handle('sync:getStatus', () => {
+        return getSyncStatus()
+    })
+
+    ipcMain.handle('sync:now', async () => {
+        return await sync()
+    })
+
+    ipcMain.handle('sync:setCredentials', (_event, creds) => {
+        setCredentials(creds)
+        startSyncInterval()
+        return { ok: true }
+    })
+
+    ipcMain.handle('sync:testConnection', async (_event, creds) => {
+        return await testConnection(creds)
     })
 }
