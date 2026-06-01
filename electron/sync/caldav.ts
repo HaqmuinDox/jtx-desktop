@@ -52,10 +52,10 @@ export async function discoverCollections(
         })
         .map(cal => ({
             url:          cal.url,
-            display_name: cal.displayName ?? null,
+            display_name: typeof cal.displayName === 'string' ? cal.displayName : null,
             type:         inferCollectionType(cal.components ?? []),
-            ctag:         (cal as any).ctag ?? null,
-            color:        (cal as any).color ?? null,
+            ctag:  (cal as Record<string, unknown>).ctag  as string ?? null,
+            color: (cal as Record<string, unknown>).color as string ?? null,
         }))
 }
 
@@ -156,7 +156,6 @@ export async function pushObject(
     existingEtag:  string | null
 ): Promise<string> {
     const client = await makeClient(creds)
-    const objectUrl = `${collectionUrl}${entryId}.ics`
 
     const response = await client.createCalendarObject({
         calendar:       { url: collectionUrl } as DAVCalendar,
@@ -165,9 +164,8 @@ export async function pushObject(
         headers:        existingEtag ? { 'If-Match': existingEtag } : {},
     })
 
-    // Server returns the new ETag in the response headers
-    const newEtag = (response as any)?.headers?.etag ?? existingEtag ?? ''
-    return newEtag
+    return (response as unknown as Record<string, unknown> & { headers?: { etag?: string } })
+        ?.headers?.etag ?? existingEtag ?? ''
 }
 
 // ── Delete an entry from the server ──────────────────────────────────────────
@@ -197,9 +195,10 @@ export async function testConnection(
     creds: CalDavCredentials
 ): Promise<{ ok: boolean; error?: string }> {
     try {
-        const collections = await discoverCollections(creds)
+        await discoverCollections(creds)
         return { ok: true }
-    } catch (err: any) {
-        return { ok: false, error: err?.message ?? 'Unknown error' }
+    } catch (err) {
+        const message = err instanceof Error ? err.message : 'Unknown error'
+        return { ok: false, error: message }
     }
 }
