@@ -55,9 +55,8 @@ export function parseIcs(
         const status   = item.getFirstPropertyValue('status')   as string | null
         const priority = item.getFirstPropertyValue('priority') as number | null
         const progress = item.getFirstPropertyValue('percent-complete') as number | null
-        const rrule    = item.getFirstProperty('rrule')
-            ? item.getFirstProperty('rrule')!.getFirstValue().toString()
-            : null
+        const rruleProp = item.getFirstProperty('rrule')
+        const rrule = rruleProp ? (rruleProp.getFirstValue()?.toString() ?? null) : null
 
         // Parent UID for subtasks
         const relatedProps = item.getAllProperties('related-to')
@@ -132,7 +131,9 @@ export function serializeEntry(entry: Entry): string {
                 catProp.setValues(tags)
                 item.addProperty(catProp)
             }
-        } catch {}
+        } catch (_e) {
+            // categories is stored as JSON; if parsing fails we skip silently
+        }
     }
 
     // VTODO-specific fields
@@ -152,7 +153,7 @@ export function serializeEntry(entry: Entry): string {
         }
         if (entry.rrule) {
             const rruleProp = new ICAL.Property('rrule')
-            rruleProp.setValue(ICAL.Recur.fromString(entry.rrule))
+            rruleProp.setValue(ICAL.Recur.fromString(entry.rrule!))
             item.addProperty(rruleProp)
         }
         if (entry.parent_uid) {

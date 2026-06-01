@@ -5,7 +5,7 @@ import path from 'node:path'
 import { getDb, closeDb } from './db'
 import { registerIpcHandlers } from './ipc'
 
-const require = createRequire(import.meta.url)
+createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 // The built directory structure
