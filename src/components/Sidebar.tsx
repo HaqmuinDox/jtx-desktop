@@ -1,4 +1,4 @@
-import { useAppStore, type Section } from '../store/app'
+import { useAppStore, type Section } from '../store/app.ts'
 
 const NAV_ITEMS: { section: Section; label: string; icon: string }[] = [
     { section: 'journals', label: 'Journals', icon: '📖' },

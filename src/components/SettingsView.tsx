@@ -1,11 +1,22 @@
-import { useState } from 'react'
-import { useAppStore } from '../store/app'
+import { useState, useEffect } from 'react'
+import { useAppStore } from '../store/app.ts'
 
 export function SettingsView() {
-    const { setEntries, setLastSynced } = useAppStore()
+    const { setEntries, setLastSynced, setIsSyncing } = useAppStore()
     const [serverUrl, setServerUrl] = useState('')
     const [username,  setUsername]  = useState('')
     const [password,  setPassword]  = useState('')
+
+    // Load saved credentials on mount
+    useEffect(() => {
+        window.api.credentials.load().then(creds => {
+            if (creds) {
+                setServerUrl(creds.serverUrl)
+                setUsername(creds.username)
+                setPassword(creds.password)
+            }
+        })
+    }, [])
     const [status,    setStatus]    = useState<'idle' | 'testing' | 'syncing' | 'ok' | 'error'>('idle')
     const [message,   setMessage]   = useState<string | null>(null)
 
@@ -25,18 +36,24 @@ export function SettingsView() {
     const handleSave = async () => {
         setStatus('syncing')
         setMessage('Saving credentials and syncing…')
-        await window.api.sync.setCredentials({ serverUrl, username, password })
-        const result = await window.api.sync.now()
-        if (result.state === 'error') {
-            setStatus('error')
-            setMessage('Sync failed — check your credentials')
-            return
+        setIsSyncing(true)
+        try {
+            await window.api.credentials.save({ serverUrl, username, password })
+            await window.api.sync.setCredentials({ serverUrl, username, password })
+            const result = await window.api.sync.now()
+            if (result.state === 'error') {
+                setStatus('error')
+                setMessage('Sync failed — check your credentials')
+                return
+            }
+            const entries = await window.api.entries.getAll()
+            setEntries(entries)
+            if (result.last_synced_at) setLastSynced(result.last_synced_at)
+            setStatus('ok')
+            setMessage(`Sync complete — ${entries.length} entries loaded`)
+        } finally {
+            setIsSyncing(false)
         }
-        const entries = await window.api.entries.getAll()
-        setEntries(entries)
-        if (result.last_synced_at) setLastSynced(result.last_synced_at)
-        setStatus('ok')
-        setMessage(`Sync complete — ${entries.length} entries loaded`)
     }
 
     return (

@@ -1,4 +1,4 @@
-import { ipcMain, safeStorage, app  } from 'electron'
+import { ipcMain, safeStorage, app } from 'electron'
 import { getDb } from './db'
 import { randomUUID } from 'node:crypto'
 import { sync, getSyncStatus, setCredentials, startSyncInterval } from './sync/engine'

@@ -4,6 +4,10 @@ import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { getDb, closeDb } from './db'
 import { registerIpcHandlers } from './ipc'
+import { safeStorage } from 'electron'
+import fs from 'node:fs'
+import { setCredentials, startSyncInterval, sync } from './sync/engine'
+
 
 createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -47,6 +51,12 @@ function createWindow() {
     // win.loadFile('dist/index.html')
     win.loadFile(path.join(RENDERER_DIST, 'index.html'))
   }
+
+    win.webContents.on('did-finish-load', () => {
+        win?.webContents.send('main-process-message', (new Date).toLocaleString())
+        // Auto-sync on window ready if credentials are loaded
+        sync().catch(err => console.error('startup sync error:', err))
+    })
 }
 
 // Quit when all windows are closed, except on macOS. There, it's common
@@ -67,10 +77,26 @@ app.on('activate', () => {
   }
 })
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
     getDb()
     registerIpcHandlers()
     createWindow()
+
+    // Auto-load saved credentials and start sync
+    try {
+        const credPath = path.join(app.getPath('userData'), 'credentials.enc')
+        if (fs.existsSync(credPath)) {
+            const raw = fs.readFileSync(credPath)
+            const plain = safeStorage.isEncryptionAvailable()
+                ? safeStorage.decryptString(Buffer.from(raw))
+                : raw.toString('utf-8')
+            const creds = JSON.parse(plain)
+            setCredentials(creds)
+            startSyncInterval()
+        }
+    } catch (_e) {
+        // No saved credentials — user will enter them in Settings
+    }
 })
 
 app.on('before-quit', () => {

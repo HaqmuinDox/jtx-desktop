@@ -1,4 +1,4 @@
-import { useAppStore } from '../store/app'
+import { useAppStore } from '../store/app.ts'
 import type { Entry } from '../../shared/types'
 
 const STATUS_GROUPS = [

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useAppStore } from '../store/app'
+import { useAppStore } from '../store/app.ts'
 
 export function SyncBar() {
     const { isSyncing, setIsSyncing, lastSynced, setLastSynced } = useAppStore()

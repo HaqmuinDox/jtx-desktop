@@ -29,4 +29,10 @@ contextBridge.exposeInMainWorld('api', {
         testConnection: (creds: Record<string, string>) =>
             ipcRenderer.invoke('sync:testConnection', creds),
     },
+    credentials: {
+        save: (creds: Record<string, string>) =>
+            ipcRenderer.invoke('credentials:save', creds),
+        load: () =>
+            ipcRenderer.invoke('credentials:load'),
+    },
 })

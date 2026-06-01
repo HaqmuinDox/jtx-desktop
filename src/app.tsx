@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { useAppStore } from './store/app'
+import { useAppStore } from './store/app.ts'
 import { Sidebar } from './components/Sidebar'
 import { JournalsView } from './components/JournalsView'
 import { NotesView } from './components/NotesView'
@@ -30,6 +30,10 @@ declare global {
                 now:            () => Promise<{ state: string; last_synced_at: string | null }>
                 setCredentials: (creds: Record<string, string>) => Promise<{ ok: boolean }>
                 testConnection: (creds: Record<string, string>) => Promise<{ ok: boolean; error?: string }>
+            }
+            credentials: {
+                save: (creds: Record<string, string>) => Promise<{ ok: boolean }>
+                load: () => Promise<{ serverUrl: string; username: string; password: string } | null>
             }
         }
     }
