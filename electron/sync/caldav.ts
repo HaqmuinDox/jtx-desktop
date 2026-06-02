@@ -155,17 +155,30 @@ export async function pushObject(
     icsData:       string,
     existingEtag:  string | null
 ): Promise<string> {
-    const client = await makeClient(creds)
+    const client    = await makeClient(creds)
+    const objectUrl = `${collectionUrl}${entryId}.ics`
 
-    const response = await client.createCalendarObject({
-        calendar:       { url: collectionUrl } as DAVCalendar,
-        filename:       `${entryId}.ics`,
-        iCalString:     icsData,
-        headers:        existingEtag ? { 'If-Match': existingEtag } : {},
-    })
-
-    return (response as unknown as Record<string, unknown> & { headers?: { etag?: string } })
-        ?.headers?.etag ?? existingEtag ?? ''
+    if (existingEtag) {
+        // Update existing object
+        const response = await client.updateCalendarObject({
+            calendarObject: {
+                url:  objectUrl,
+                etag: existingEtag,
+                data: icsData,
+            },
+        })
+        const headers = (response as unknown as { headers?: Record<string, string> })?.headers
+        return headers?.etag ?? headers?.['oc-etag'] ?? existingEtag
+    } else {
+        // Create new object
+        const response = await client.createCalendarObject({
+            calendar:   { url: collectionUrl } as DAVCalendar,
+            filename:   `${entryId}.ics`,
+            iCalString: icsData,
+        })
+        return (response as unknown as Record<string, unknown> & { headers?: { etag?: string } })
+            ?.headers?.etag ?? ''
+    }
 }
 
 // ── Delete an entry from the server ──────────────────────────────────────────
