@@ -435,12 +435,12 @@ main: {
 
 Before any release, verify the following manually using jtx Board on Android + Nextcloud:
 
-- [ ] Entry created in desktop app appears in jtx Board after sync
-- [ ] Entry created in jtx Board appears in desktop app after sync
+- [x] Entry created in desktop app appears in jtx Board after sync
+- [x] Entry created in jtx Board appears in desktop app after sync
 - [x] Editing an entry in desktop app reflects in jtx Board after sync
 - [x] Editing an entry in jtx Board reflects in desktop app after sync
 - [ ] Deleting in desktop app removes from jtx Board after sync
-- [ ] Deleting in jtx Board removes from desktop app after sync
+- [x] Deleting in jtx Board removes from desktop app after sync
 - [ ] Subtasks created in desktop app show as subtasks in jtx Board
 - [ ] Tags/categories sync correctly in both directions
 - [ ] Linked entries (`RELATED-TO`) sync correctly in both directions

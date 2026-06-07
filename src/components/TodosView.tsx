@@ -9,7 +9,7 @@ const STATUS_GROUPS = [
 ]
 
 export function TodosView() {
-    const { entries, selectedEntry, setSelectedEntry } = useAppStore()
+    const { entries, selectedEntry, setSelectedEntry, setCreatingType } = useAppStore()
 
     const todos = entries
         .filter(e => e.type === 'todo' && !e.parent_uid)
@@ -28,6 +28,7 @@ export function TodosView() {
                 icon="✓"
                 title="No tasks yet"
                 subtitle="Tasks from jtx Board will appear here after syncing"
+                onNew={() => setCreatingType('todo')}
             />
         )
     }
@@ -38,24 +39,27 @@ export function TodosView() {
             overflowY: 'auto',
             padding:   '32px 36px',
         }}>
-            <h1 style={{
-                fontFamily:   'var(--font-display)',
-                fontSize:     '26px',
-                fontWeight:   400,
-                color:        'var(--text-primary)',
-                marginBottom: '32px',
-            }}>
-                Tasks
-                <span style={{
-                    fontSize:   '14px',
-                    fontFamily: 'var(--font-ui)',
-                    color:      'var(--text-muted)',
-                    marginLeft: '12px',
-                    fontWeight: 300,
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px' }}>
+                <h1 style={{
+                    fontFamily: 'var(--font-display)',
+                    fontSize:   '26px',
+                    fontWeight: 400,
+                    color:      'var(--text-primary)',
+                    margin:     0,
                 }}>
-          {todos.length}
-        </span>
-            </h1>
+                    Tasks
+                    <span style={{
+                        fontSize:   '14px',
+                        fontFamily: 'var(--font-ui)',
+                        color:      'var(--text-muted)',
+                        marginLeft: '12px',
+                        fontWeight: 300,
+                    }}>
+                        {todos.length}
+                    </span>
+                </h1>
+                <NewButton onClick={() => setCreatingType('todo')} />
+            </div>
 
             {STATUS_GROUPS.map(({ status, label, color }) => {
                 const group = todos.filter(e => (e.status ?? 'NEEDS-ACTION') === status)
@@ -276,8 +280,24 @@ function TodoRow({
     )
 }
 
-function Empty({ icon, title, subtitle }: {
-    icon: string; title: string; subtitle: string
+function NewButton({ onClick }: { onClick: () => void }) {
+    return (
+        <button onClick={onClick} style={{
+            background:   'rgba(196,163,90,0.12)',
+            border:       '1px solid var(--accent-dim)',
+            borderRadius: 'var(--radius-sm)',
+            color:        'var(--accent)',
+            fontSize:     '20px',
+            lineHeight:   1,
+            padding:      '1px 10px 3px',
+            cursor:       'pointer',
+            fontFamily:   'var(--font-ui)',
+        }}>+</button>
+    )
+}
+
+function Empty({ icon, title, subtitle, onNew }: {
+    icon: string; title: string; subtitle: string; onNew?: () => void
 }) {
     return (
         <div style={{
@@ -301,6 +321,19 @@ function Empty({ icon, title, subtitle }: {
             <div style={{ fontSize: '13px', textAlign: 'center', maxWidth: '280px' }}>
                 {subtitle}
             </div>
+            {onNew && (
+                <button onClick={onNew} style={{
+                    marginTop:    '8px',
+                    background:   'rgba(196,163,90,0.12)',
+                    border:       '1px solid var(--accent-dim)',
+                    borderRadius: 'var(--radius-md)',
+                    color:        'var(--accent)',
+                    fontSize:     '13px',
+                    fontFamily:   'var(--font-ui)',
+                    padding:      '8px 20px',
+                    cursor:       'pointer',
+                }}>+ New task</button>
+            )}
         </div>
     )
 }

@@ -2,7 +2,7 @@ import { useAppStore } from '../store/app.ts'
 import type { Entry } from '../../shared/types'
 
 export function NotesView() {
-    const { entries, selectedEntry, setSelectedEntry } = useAppStore()
+    const { entries, selectedEntry, setSelectedEntry, setCreatingType } = useAppStore()
 
     const notes = entries
         .filter(e => e.type === 'note')
@@ -14,6 +14,7 @@ export function NotesView() {
                 icon="📝"
                 title="No notes yet"
                 subtitle="Floating notes from jtx Board will appear here after syncing"
+                onNew={() => setCreatingType('note')}
             />
         )
     }
@@ -24,24 +25,27 @@ export function NotesView() {
             overflowY: 'auto',
             padding:   '32px 36px',
         }}>
-            <h1 style={{
-                fontFamily:   'var(--font-display)',
-                fontSize:     '26px',
-                fontWeight:   400,
-                color:        'var(--text-primary)',
-                marginBottom: '32px',
-            }}>
-                Notes
-                <span style={{
-                    fontSize:    '14px',
-                    fontFamily:  'var(--font-ui)',
-                    color:       'var(--text-muted)',
-                    marginLeft:  '12px',
-                    fontWeight:  300,
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px' }}>
+                <h1 style={{
+                    fontFamily: 'var(--font-display)',
+                    fontSize:   '26px',
+                    fontWeight: 400,
+                    color:      'var(--text-primary)',
+                    margin:     0,
                 }}>
-          {notes.length}
-        </span>
-            </h1>
+                    Notes
+                    <span style={{
+                        fontSize:   '14px',
+                        fontFamily: 'var(--font-ui)',
+                        color:      'var(--text-muted)',
+                        marginLeft: '12px',
+                        fontWeight: 300,
+                    }}>
+                        {notes.length}
+                    </span>
+                </h1>
+                <NewButton onClick={() => setCreatingType('note')} />
+            </div>
 
             {/* Card grid */}
             <div style={{
@@ -174,8 +178,24 @@ function NoteCard({
     )
 }
 
-function Empty({ icon, title, subtitle }: {
-    icon: string; title: string; subtitle: string
+function NewButton({ onClick }: { onClick: () => void }) {
+    return (
+        <button onClick={onClick} style={{
+            background:   'rgba(196,163,90,0.12)',
+            border:       '1px solid var(--accent-dim)',
+            borderRadius: 'var(--radius-sm)',
+            color:        'var(--accent)',
+            fontSize:     '20px',
+            lineHeight:   1,
+            padding:      '1px 10px 3px',
+            cursor:       'pointer',
+            fontFamily:   'var(--font-ui)',
+        }}>+</button>
+    )
+}
+
+function Empty({ icon, title, subtitle, onNew }: {
+    icon: string; title: string; subtitle: string; onNew?: () => void
 }) {
     return (
         <div style={{
@@ -199,6 +219,19 @@ function Empty({ icon, title, subtitle }: {
             <div style={{ fontSize: '13px', textAlign: 'center', maxWidth: '280px' }}>
                 {subtitle}
             </div>
+            {onNew && (
+                <button onClick={onNew} style={{
+                    marginTop:    '8px',
+                    background:   'rgba(196,163,90,0.12)',
+                    border:       '1px solid var(--accent-dim)',
+                    borderRadius: 'var(--radius-md)',
+                    color:        'var(--accent)',
+                    fontSize:     '13px',
+                    fontFamily:   'var(--font-ui)',
+                    padding:      '8px 20px',
+                    cursor:       'pointer',
+                }}>+ New note</button>
+            )}
         </div>
     )
 }

@@ -41,7 +41,7 @@ declare global {
 }
 
 export default function App() {
-    const { activeSection, selectedEntry, setEntries } = useAppStore()
+    const { activeSection, selectedEntry, creatingType, setEntries } = useAppStore()
 
     // Load all entries on mount
     useEffect(() => {
@@ -83,7 +83,7 @@ export default function App() {
                     {mainContent()}
                 </main>
 
-                {selectedEntry && (
+                {(selectedEntry || creatingType) && (
                     <EntryDetail />
                 )}
             </div>

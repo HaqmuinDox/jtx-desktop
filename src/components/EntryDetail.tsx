@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { useAppStore } from '../store/app'
 import { EntryEditor } from './EntryEditor'
@@ -75,21 +75,72 @@ function initEditState(entry: Entry): EditState {
     }
 }
 
+function initBlankEditState(type: 'journal' | 'note' | 'todo'): EditState {
+    const now = new Date()
+    const pad = (n: number) => String(n).padStart(2, '0')
+    const localNow = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`
+    return {
+        title:          '',
+        body:           '',
+        status:         type === 'todo' ? 'NEEDS-ACTION' : '',
+        classification: '',
+        color:          '#c4a35a',
+        start_date:     type === 'journal' ? localNow : '',
+        due_date:       '',
+        completed_date: '',
+        priority:       '0',
+        progress:       '0',
+        rrule:          '',
+        exdate:         '',
+        categories:     '',
+        location:       '',
+        url:            '',
+        comment:        '',
+        contact:        '',
+        geo_lat:        '',
+        geo_lon:        '',
+        duration:       '',
+        alarms:         [],
+    }
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function EntryDetail() {
-    const { selectedEntry, setSelectedEntry, entries, setEntries } = useAppStore()
+    const {
+        selectedEntry, setSelectedEntry,
+        entries, setEntries,
+        creatingType, setCreatingType, addEntry,
+    } = useAppStore()
+
     const [isEditing, setIsEditing] = useState(false)
     const [editState, setEditState] = useState<EditState | null>(null)
     const [saving,    setSaving]    = useState(false)
+    const [collections, setCollections] = useState<{ url: string; display_name: string | null }[]>([])
+    const [selectedCollection, setSelectedCollection] = useState('')
 
-    if (!selectedEntry) return null
+    const isCreating = creatingType !== null && selectedEntry === null
 
-    const subtasks = entries.filter(
-        e => e.type === 'todo' && e.parent_uid === selectedEntry.id
-    )
+    // Initialize blank form when entering create mode
+    useEffect(() => {
+        if (isCreating && creatingType) {
+            setEditState(initBlankEditState(creatingType))
+            window.api.collections.getAll().then(cols => {
+                const typed = cols as { url: string; display_name: string | null }[]
+                setCollections(typed)
+                setSelectedCollection(typed[0]?.url ?? '')
+            })
+        }
+    }, [isCreating, creatingType]) // eslint-disable-line react-hooks/exhaustive-deps
+
+    if (!selectedEntry && !isCreating) return null
+
+    const subtasks = selectedEntry
+        ? entries.filter(e => e.type === 'todo' && e.parent_uid === selectedEntry.id)
+        : []
 
     const handleEdit = () => {
+        if (!selectedEntry) return
         setEditState(initEditState(selectedEntry))
         setIsEditing(true)
     }
@@ -99,52 +150,60 @@ export function EntryDetail() {
         setEditState(null)
     }
 
+    const handleClose = () => {
+        if (isCreating) {
+            setCreatingType(null)
+            setEditState(null)
+        } else {
+            setSelectedEntry(null)
+        }
+    }
+
     const set = (field: keyof EditState) => (
         e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
     ) => setEditState(prev => prev ? { ...prev, [field]: e.target.value } : prev)
 
-    const handleSave = async () => {
-        if (!editState) return
-        setSaving(true)
-
-        const categories = editState.categories.trim()
-            ? JSON.stringify(editState.categories.split(',').map(t => t.trim()).filter(Boolean))
+    const assembleFields = (state: EditState) => {
+        const categories = state.categories.trim()
+            ? JSON.stringify(state.categories.split(',').map(t => t.trim()).filter(Boolean))
             : null
-        const exdate = editState.exdate.trim()
-            ? JSON.stringify(editState.exdate.split(',').map(d => d.trim()).filter(Boolean))
+        const exdate = state.exdate.trim()
+            ? JSON.stringify(state.exdate.split(',').map(d => d.trim()).filter(Boolean))
             : null
-        const geo = (editState.geo_lat.trim() && editState.geo_lon.trim())
-            ? `${editState.geo_lat.trim()};${editState.geo_lon.trim()}`
+        const geo = (state.geo_lat.trim() && state.geo_lon.trim())
+            ? `${state.geo_lat.trim()};${state.geo_lon.trim()}`
             : null
-        const alarms = editState.alarms.length > 0
-            ? JSON.stringify(editState.alarms)
-            : null
-        const priority = parseInt(editState.priority)
-        const progress = parseInt(editState.progress)
-
-        await window.api.entries.update(selectedEntry.id, {
-            title:          editState.title          || null,
-            body:           editState.body           || null,
-            status:         editState.status         || null,
-            classification: editState.classification || null,
-            color:          editState.color          || null,
-            start_date:     editState.start_date     ? new Date(editState.start_date).toISOString()     : null,
-            due_date:       editState.due_date       ? new Date(editState.due_date).toISOString()       : null,
-            completed_date: editState.completed_date ? new Date(editState.completed_date).toISOString() : null,
+        const alarms = state.alarms.length > 0 ? JSON.stringify(state.alarms) : null
+        const priority = parseInt(state.priority)
+        const progress = parseInt(state.progress)
+        return {
+            title:          state.title          || null,
+            body:           state.body           || null,
+            status:         state.status         || null,
+            classification: state.classification || null,
+            color:          state.color          || null,
+            start_date:     state.start_date     ? new Date(state.start_date).toISOString()     : null,
+            due_date:       state.due_date       ? new Date(state.due_date).toISOString()       : null,
+            completed_date: state.completed_date ? new Date(state.completed_date).toISOString() : null,
             priority:       isNaN(priority) || priority === 0 ? null : priority,
             progress:       isNaN(progress) ? null : progress,
-            rrule:          editState.rrule    || null,
+            rrule:          state.rrule    || null,
             exdate,
             categories,
-            location:       editState.location || null,
-            url:            editState.url      || null,
-            comment:        editState.comment  || null,
-            contact:        editState.contact  || null,
+            location:       state.location || null,
+            url:            state.url      || null,
+            comment:        state.comment  || null,
+            contact:        state.contact  || null,
             geo,
-            duration:       editState.duration || null,
+            duration:       state.duration || null,
             alarms,
-        })
+        }
+    }
 
+    const handleSave = async () => {
+        if (!editState || !selectedEntry) return
+        setSaving(true)
+        await window.api.entries.update(selectedEntry.id, assembleFields(editState))
         const updated  = await window.api.entries.getAll()
         setEntries(updated)
         const refreshed = updated.find(e => e.id === selectedEntry.id)
@@ -153,6 +212,23 @@ export function EntryDetail() {
         setEditState(null)
         setSaving(false)
     }
+
+    const handleCreate = async () => {
+        if (!editState || !creatingType) return
+        setSaving(true)
+        const { id } = await window.api.entries.create({
+            type:       creatingType,
+            collection: selectedCollection,
+            ...assembleFields(editState),
+        })
+        const fresh = await window.api.entries.getById(id) as Entry
+        addEntry(fresh)
+        setSelectedEntry(fresh)
+        setEditState(null)
+        setSaving(false)
+    }
+
+    const currentType = isCreating ? creatingType! : selectedEntry!.type
 
     return (
         <aside style={{
@@ -165,7 +241,7 @@ export function EntryDetail() {
             overflow:      'hidden',
         }}>
             {/* Color accent bar */}
-            {selectedEntry.color && !isEditing && (
+            {selectedEntry?.color && !isEditing && (
                 <div style={{ height: '3px', background: selectedEntry.color, flexShrink: 0 }} />
             )}
 
@@ -178,26 +254,28 @@ export function EntryDetail() {
                 gap:          '10px',
             }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                    {/* Type + status badges */}
+                    {/* Type label + status badges */}
                     <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginBottom: '6px', flexWrap: 'wrap' }}>
                         <span style={{
                             fontSize: '10px', color: 'var(--accent)',
                             letterSpacing: '0.08em', textTransform: 'uppercase',
                         }}>
-                            {selectedEntry.type === 'journal' ? 'Journal'
-                                : selectedEntry.type === 'note' ? 'Note' : 'Task'}
+                            {isCreating
+                                ? `New ${currentType === 'journal' ? 'Journal' : currentType === 'note' ? 'Note' : 'Task'}`
+                                : currentType === 'journal' ? 'Journal' : currentType === 'note' ? 'Note' : 'Task'}
                         </span>
-                        {!isEditing && selectedEntry.status && (
+                        {!isEditing && !isCreating && selectedEntry?.status && (
                             <StatusBadge status={selectedEntry.status} />
                         )}
-                        {!isEditing && selectedEntry.classification && (
+                        {!isEditing && !isCreating && selectedEntry?.classification && (
                             <span style={{ fontSize: '9px', color: 'var(--text-muted)', border: '1px solid var(--border)', borderRadius: '3px', padding: '1px 5px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                                 {selectedEntry.classification}
                             </span>
                         )}
                     </div>
 
-                    {isEditing && editState ? (
+                    {/* Title */}
+                    {(isEditing || isCreating) && editState ? (
                         <input
                             value={editState.title}
                             onChange={set('title')}
@@ -213,13 +291,18 @@ export function EntryDetail() {
                             lineHeight: 1.3,
                             margin:     0,
                         }}>
-                            {selectedEntry.title || 'Untitled'}
+                            {selectedEntry?.title || 'Untitled'}
                         </h2>
                     )}
                 </div>
 
                 <div style={{ display: 'flex', gap: '5px', flexShrink: 0 }}>
-                    {isEditing ? (
+                    {isCreating ? (
+                        <>
+                            <HeaderButton label={saving ? '…' : 'Create'} onClick={handleCreate} accent />
+                            <HeaderButton label="Cancel" onClick={handleClose} />
+                        </>
+                    ) : isEditing ? (
                         <>
                             <HeaderButton label={saving ? '…' : 'Save'} onClick={handleSave} accent />
                             <HeaderButton label="Cancel" onClick={handleCancel} />
@@ -227,7 +310,7 @@ export function EntryDetail() {
                     ) : (
                         <HeaderButton label="Edit" onClick={handleEdit} />
                     )}
-                    <HeaderButton label="×" onClick={() => setSelectedEntry(null)} />
+                    <HeaderButton label="×" onClick={handleClose} />
                 </div>
             </div>
 
@@ -240,16 +323,45 @@ export function EntryDetail() {
                 flexDirection: 'column',
                 gap:           '16px',
             }}>
-                {isEditing && editState ? (
+                {isCreating && editState ? (
+                    <>
+                        {/* Collection picker */}
+                        {collections.length > 0 ? (
+                            <FormField label="Collection">
+                                <select
+                                    value={selectedCollection}
+                                    onChange={e => setSelectedCollection(e.target.value)}
+                                    style={selectStyle}
+                                >
+                                    {collections.map(c => (
+                                        <option key={c.url} value={c.url}>
+                                            {c.display_name || c.url}
+                                        </option>
+                                    ))}
+                                </select>
+                            </FormField>
+                        ) : (
+                            <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0 }}>
+                                No collections found — the entry will be saved locally and synced after connecting to Nextcloud.
+                            </p>
+                        )}
+                        <EditForm
+                            type={currentType}
+                            state={editState}
+                            onChange={next => setEditState(next)}
+                            set={set}
+                        />
+                    </>
+                ) : isEditing && editState ? (
                     <EditForm
-                        entry={selectedEntry}
+                        type={currentType}
                         state={editState}
                         onChange={next => setEditState(next)}
                         set={set}
                     />
-                ) : (
+                ) : selectedEntry ? (
                     <ViewMode entry={selectedEntry} subtasks={subtasks} />
-                )}
+                ) : null}
             </div>
         </aside>
     )
@@ -337,7 +449,7 @@ function ViewMode({ entry, subtasks }: { entry: Entry; subtasks: Entry[] }) {
                 </div>
             )}
 
-            {/* Body — the main content, shown prominently */}
+            {/* Body */}
             {entry.body && (
                 <div style={{ borderTop: '1px solid var(--border)', paddingTop: '16px' }}>
                     <div className="markdown-body" style={{
@@ -349,7 +461,7 @@ function ViewMode({ entry, subtasks }: { entry: Entry; subtasks: Entry[] }) {
                 </div>
             )}
 
-            {/* Comment — highlighted box */}
+            {/* Comment */}
             {entry.comment && (
                 <div style={{
                     background:   'var(--bg-raised)',
@@ -364,7 +476,7 @@ function ViewMode({ entry, subtasks }: { entry: Entry; subtasks: Entry[] }) {
                 </div>
             )}
 
-            {/* Details: location, url, contact, geo, duration */}
+            {/* Details */}
             {(entry.location || entry.url || entry.contact || entry.geo || entry.duration) && (
                 <div style={{ borderTop: '1px solid var(--border)', paddingTop: '14px', display: 'flex', flexDirection: 'column', gap: '7px' }}>
                     <SectionLabel>Details</SectionLabel>
@@ -480,15 +592,15 @@ function ViewMode({ entry, subtasks }: { entry: Entry; subtasks: Entry[] }) {
 // ── Edit form ─────────────────────────────────────────────────────────────────
 
 function EditForm({
-    entry, state, onChange, set,
+    type, state, onChange, set,
 }: {
-    entry:    Entry
+    type:    'journal' | 'note' | 'todo'
     state:    EditState
     onChange: (next: EditState) => void
     set:      (field: keyof EditState) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => void
 }) {
-    const isTodo    = entry.type === 'todo'
-    const isJournal = entry.type === 'journal'
+    const isTodo    = type === 'todo'
+    const isJournal = type === 'journal'
 
     const statusOptions = isTodo
         ? [['', 'No status'], ['NEEDS-ACTION', 'Needs Action'], ['IN-PROCESS', 'In Process'], ['COMPLETED', 'Completed'], ['CANCELLED', 'Cancelled']]
