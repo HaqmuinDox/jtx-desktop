@@ -30,9 +30,11 @@ export function setCredentials(creds: CalDavCredentials) {
 
 export function getSyncStatus(): SyncStatus {
     const db      = getDb()
-    const pending = (db.prepare(
-        'SELECT COUNT(*) as count FROM entries WHERE dirty = 1 AND deleted = 0'
-    ).get() as any).count
+    const pending = (db.prepare(`
+        SELECT COUNT(*) as count FROM entries
+        WHERE dirty = 1 AND deleted = 0
+        AND collection IN (SELECT url FROM collections)
+    `).get() as any).count
     return { ...syncStatus, pending_changes: pending }
 }
 

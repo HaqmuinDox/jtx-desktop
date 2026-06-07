@@ -173,6 +173,14 @@ export function registerIpcHandlers() {
         return { ok: true }
     })
 
+    // Returns entries that are marked dirty=1 (for diagnostics)
+    ipcMain.handle('sync:getDirtyEntries', () => {
+        const db = getDb()
+        return db.prepare(
+            'SELECT id, type, title, collection, dirty, etag FROM entries WHERE dirty = 1 AND deleted = 0'
+        ).all()
+    })
+
     // ── Credentials ───────────────────────────────────────────────────────────
 
     ipcMain.handle('credentials:save', (_event, creds: Record<string, string>) => {

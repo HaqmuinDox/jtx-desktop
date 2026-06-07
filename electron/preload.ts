@@ -28,8 +28,10 @@ contextBridge.exposeInMainWorld('api', {
             ipcRenderer.invoke('sync:setCredentials', creds),
         testConnection: (creds: Record<string, string>) =>
             ipcRenderer.invoke('sync:testConnection', creds),
-        resetCache:     () =>
+        resetCache:      () =>
             ipcRenderer.invoke('sync:resetCache'),
+        getDirtyEntries: () =>
+            ipcRenderer.invoke('sync:getDirtyEntries'),
     },
     credentials: {
         save: (creds: Record<string, string>) =>

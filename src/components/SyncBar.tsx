@@ -28,9 +28,11 @@ export function SyncBar() {
         try {
             const result = await window.api.sync.now()
             if (result.last_synced_at) setLastSynced(result.last_synced_at)
-            // Reload entries after sync
             const entries = await window.api.entries.getAll()
             useAppStore.getState().setEntries(entries)
+            // Refresh pending count immediately after sync
+            const status = await window.api.sync.getStatus()
+            setPendingChanges(status.pending_changes)
         } catch (_e) {
             setError('Sync failed')
         } finally {
