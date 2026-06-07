@@ -6,9 +6,16 @@ import { testConnection } from './sync/caldav'
 import path from 'node:path'
 import fs from 'node:fs'
 
+const ALL_ENTRY_FIELDS = [
+    'title', 'body', 'start_date', 'due_date', 'completed_date', 'status',
+    'priority', 'progress', 'rrule', 'exdate', 'categories',
+    'location', 'url', 'classification', 'color', 'comment', 'contact',
+    'geo', 'duration', 'alarms', 'sequence', 'parent_uid',
+] as const
+
 export function registerIpcHandlers() {
 
-    // ── Collections ──────────────────────────────────────────
+    // ── Collections ──────────────────────────────────────────────────────────
 
     ipcMain.handle('collections:getAll', () => {
         const db = getDb()
@@ -20,16 +27,16 @@ export function registerIpcHandlers() {
         db.prepare(`
             INSERT INTO collections (url, display_name, type, ctag, color)
             VALUES (@url, @display_name, @type, @ctag, @color)
-                ON CONFLICT(url) DO UPDATE SET
+            ON CONFLICT(url) DO UPDATE SET
                 display_name = excluded.display_name,
-                                        type         = excluded.type,
-                                        ctag         = excluded.ctag,
-                                        color        = excluded.color
+                type         = excluded.type,
+                ctag         = excluded.ctag,
+                color        = excluded.color
         `).run(collection)
         return { ok: true }
     })
 
-    // ── Entries ───────────────────────────────────────────────
+    // ── Entries ───────────────────────────────────────────────────────────────
 
     ipcMain.handle('entries:getAll', (_event, filters?: { type?: string; collection?: string }) => {
         const db = getDb()
@@ -55,34 +62,53 @@ export function registerIpcHandlers() {
     ipcMain.handle('entries:create', (_event, entry) => {
         const db = getDb()
         const now = new Date().toISOString()
-        const id = entry.id ?? randomUUID()
+        const id  = entry.id ?? randomUUID()
         db.prepare(`
-      INSERT INTO entries (
-        id, type, title, body, start_date, due_date, status,
-        priority, progress, rrule, categories, parent_uid,
-        collection, etag, dirty, deleted, created_at, updated_at
-      ) VALUES (
-        @id, @type, @title, @body, @start_date, @due_date, @status,
-        @priority, @progress, @rrule, @categories, @parent_uid,
-        @collection, @etag, 1, 0, @created_at, @updated_at
-      )
-    `).run({
+            INSERT INTO entries (
+                id, type, title, body,
+                start_date, due_date, completed_date, status,
+                priority, progress, rrule, exdate, categories,
+                location, url, classification, color, comment, contact,
+                geo, duration, alarms, sequence, parent_uid,
+                collection, etag, dirty, deleted, created_at, updated_at
+            ) VALUES (
+                @id, @type, @title, @body,
+                @start_date, @due_date, @completed_date, @status,
+                @priority, @progress, @rrule, @exdate, @categories,
+                @location, @url, @classification, @color, @comment, @contact,
+                @geo, @duration, @alarms, @sequence, @parent_uid,
+                @collection, @etag, 1, 0, @created_at, @updated_at
+            )
+        `).run({
             id,
-            type:        entry.type,
-            title:       entry.title       ?? null,
-            body:        entry.body        ?? null,
-            start_date:  entry.start_date  ?? null,
-            due_date:    entry.due_date    ?? null,
-            status:      entry.status      ?? null,
-            priority:    entry.priority    ?? null,
-            progress:    entry.progress    ?? null,
-            rrule:       entry.rrule       ?? null,
-            categories:  entry.categories  ?? null,
-            parent_uid:  entry.parent_uid  ?? null,
-            collection:  entry.collection,
-            etag:        entry.etag        ?? null,
-            created_at:  now,
-            updated_at:  now,
+            type:           entry.type,
+            title:          entry.title          ?? null,
+            body:           entry.body           ?? null,
+            start_date:     entry.start_date     ?? null,
+            due_date:       entry.due_date        ?? null,
+            completed_date: entry.completed_date ?? null,
+            status:         entry.status         ?? null,
+            priority:       entry.priority       ?? null,
+            progress:       entry.progress       ?? null,
+            rrule:          entry.rrule          ?? null,
+            exdate:         entry.exdate         ?? null,
+            categories:     entry.categories     ?? null,
+            location:       entry.location       ?? null,
+            url:            entry.url            ?? null,
+            classification: entry.classification ?? null,
+            color:          entry.color          ?? null,
+            comment:        entry.comment        ?? null,
+            contact:        entry.contact        ?? null,
+            geo:            entry.geo            ?? null,
+            duration:       entry.duration       ?? null,
+            alarms:         entry.alarms         ?? null,
+            sequence:       entry.sequence       ?? 0,
+            parent_uid:     entry.parent_uid     ?? null,
+            collection:     entry.collection,
+            etag:           entry.etag           ?? null,
+            // Preserve the original CREATED timestamp from iCal if available
+            created_at:     entry.created_at     ?? now,
+            updated_at:     entry.updated_at     ?? now,
         })
         return { id }
     })
@@ -90,29 +116,32 @@ export function registerIpcHandlers() {
     ipcMain.handle('entries:update', (_event, id: string, fields) => {
         const db = getDb()
         const now = new Date().toISOString()
-        const allowed = [
-            'title', 'body', 'start_date', 'due_date', 'status',
-            'priority', 'progress', 'rrule', 'categories', 'parent_uid', 'etag'
-        ]
+
         const updates = Object.keys(fields)
-            .filter(k => allowed.includes(k))
+            .filter(k => (ALL_ENTRY_FIELDS as readonly string[]).includes(k))
             .map(k => `${k} = @${k}`)
             .join(', ')
+
         if (!updates) return { ok: false, reason: 'no valid fields' }
+
+        // Increment sequence on every user-initiated update so the server
+        // can detect our changes via the SEQUENCE counter.
         db.prepare(`
-      UPDATE entries SET ${updates}, updated_at = @updated_at, dirty = 1
-      WHERE id = @id
-    `).run({ ...fields, updated_at: now, id })
+            UPDATE entries
+            SET ${updates}, updated_at = @updated_at, dirty = 1,
+                sequence = COALESCE(sequence, 0) + 1
+            WHERE id = @id
+        `).run({ ...fields, updated_at: now, id })
+
         return { ok: true }
     })
 
     ipcMain.handle('entries:delete', (_event, id: string) => {
         const db = getDb()
-        // Soft delete — sync engine will send DELETE to server then remove locally
         db.prepare(`
-      UPDATE entries SET deleted = 1, dirty = 1, updated_at = @updated_at
-      WHERE id = @id
-    `).run({ updated_at: new Date().toISOString(), id })
+            UPDATE entries SET deleted = 1, dirty = 1, updated_at = @updated_at
+            WHERE id = @id
+        `).run({ updated_at: new Date().toISOString(), id })
         return { ok: true }
     })
 
@@ -136,7 +165,15 @@ export function registerIpcHandlers() {
         return await testConnection(creds)
     })
 
-    // ── Credentials ───────────────────────────────────────────
+    // Clears all local ETags so the next sync re-fetches every entry from
+    // the server. Use this to pick up fields that were added after initial sync.
+    ipcMain.handle('sync:resetCache', () => {
+        const db = getDb()
+        db.prepare('UPDATE entries SET etag = NULL WHERE deleted = 0').run()
+        return { ok: true }
+    })
+
+    // ── Credentials ───────────────────────────────────────────────────────────
 
     ipcMain.handle('credentials:save', (_event, creds: Record<string, string>) => {
         try {
@@ -146,7 +183,6 @@ export function registerIpcHandlers() {
                 const encrypted = safeStorage.encryptString(plain)
                 fs.writeFileSync(credPath, encrypted)
             } else {
-                // Fallback: store as plain text if OS encryption unavailable
                 fs.writeFileSync(credPath, plain, 'utf-8')
             }
             return { ok: true }

@@ -30,6 +30,7 @@ declare global {
                 now:            () => Promise<{ state: string; last_synced_at: string | null }>
                 setCredentials: (creds: Record<string, string>) => Promise<{ ok: boolean }>
                 testConnection: (creds: Record<string, string>) => Promise<{ ok: boolean; error?: string }>
+                resetCache:     () => Promise<{ ok: boolean }>
             }
             credentials: {
                 save: (creds: Record<string, string>) => Promise<{ ok: boolean }>

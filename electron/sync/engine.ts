@@ -179,72 +179,89 @@ async function syncCollection(col: Collection) {
             'SELECT id, updated_at FROM entries WHERE id = ?'
         ).get(parsed.id) as { id: string; updated_at: string } | undefined
 
+        const now  = new Date().toISOString()
+        const row  = {
+            id:             parsed.id,
+            type:           parsed.type           ?? 'note',
+            title:          parsed.title          ?? null,
+            body:           parsed.body           ?? null,
+            start_date:     parsed.start_date     ?? null,
+            due_date:       parsed.due_date       ?? null,
+            completed_date: parsed.completed_date ?? null,
+            status:         parsed.status         ?? null,
+            priority:       parsed.priority       ?? null,
+            progress:       parsed.progress       ?? null,
+            rrule:          parsed.rrule          ?? null,
+            exdate:         parsed.exdate         ?? null,
+            categories:     parsed.categories     ?? null,
+            location:       parsed.location       ?? null,
+            url:            parsed.url            ?? null,
+            classification: parsed.classification ?? null,
+            color:          parsed.color          ?? null,
+            comment:        parsed.comment        ?? null,
+            contact:        parsed.contact        ?? null,
+            geo:            parsed.geo            ?? null,
+            duration:       parsed.duration       ?? null,
+            alarms:         parsed.alarms         ?? null,
+            sequence:       parsed.sequence       ?? 0,
+            parent_uid:     parsed.parent_uid     ?? null,
+            collection:     col.url,
+            etag:           obj.etag,
+            created_at:     parsed.created_at     ?? now,
+            updated_at:     parsed.updated_at     ?? now,
+        }
+
         if (!exists) {
             // New entry from server — insert it
-            const now = new Date().toISOString()
             db.prepare(`
-        INSERT INTO entries (
-          id, type, title, body, start_date, due_date, status,
-          priority, progress, rrule, categories, parent_uid,
-          collection, etag, dirty, deleted, created_at, updated_at
-        ) VALUES (
-          @id, @type, @title, @body, @start_date, @due_date, @status,
-          @priority, @progress, @rrule, @categories, @parent_uid,
-          @collection, @etag, 0, 0, @created_at, @updated_at
-        )
-      `).run({
-                id:          parsed.id,
-                type:        parsed.type        ?? 'note',
-                title:       parsed.title       ?? null,
-                body:        parsed.body        ?? null,
-                start_date:  parsed.start_date  ?? null,
-                due_date:    parsed.due_date    ?? null,
-                status:      parsed.status      ?? null,
-                priority:    parsed.priority    ?? null,
-                progress:    parsed.progress    ?? null,
-                rrule:       parsed.rrule       ?? null,
-                categories:  parsed.categories  ?? null,
-                parent_uid:  parsed.parent_uid  ?? null,
-                collection:  col.url,
-                etag:        obj.etag,
-                created_at:  now,
-                updated_at:  now,
-            })
+                INSERT INTO entries (
+                    id, type, title, body,
+                    start_date, due_date, completed_date, status,
+                    priority, progress, rrule, exdate, categories,
+                    location, url, classification, color, comment, contact,
+                    geo, duration, alarms, sequence, parent_uid,
+                    collection, etag, dirty, deleted, created_at, updated_at
+                ) VALUES (
+                    @id, @type, @title, @body,
+                    @start_date, @due_date, @completed_date, @status,
+                    @priority, @progress, @rrule, @exdate, @categories,
+                    @location, @url, @classification, @color, @comment, @contact,
+                    @geo, @duration, @alarms, @sequence, @parent_uid,
+                    @collection, @etag, 0, 0, @created_at, @updated_at
+                )
+            `).run(row)
         } else {
-            // Existing entry — update it (server wins, last-modified based)
+            // Existing entry — server wins (last-write-wins on pull)
             db.prepare(`
-        UPDATE entries SET
-          type        = @type,
-          title       = @title,
-          body        = @body,
-          start_date  = @start_date,
-          due_date    = @due_date,
-          status      = @status,
-          priority    = @priority,
-          progress    = @progress,
-          rrule       = @rrule,
-          categories  = @categories,
-          parent_uid  = @parent_uid,
-          etag        = @etag,
-          dirty       = 0,
-          updated_at  = @updated_at
-        WHERE id = @id
-      `).run({
-                id:          parsed.id,
-                type:        parsed.type        ?? 'note',
-                title:       parsed.title       ?? null,
-                body:        parsed.body        ?? null,
-                start_date:  parsed.start_date  ?? null,
-                due_date:    parsed.due_date    ?? null,
-                status:      parsed.status      ?? null,
-                priority:    parsed.priority    ?? null,
-                progress:    parsed.progress    ?? null,
-                rrule:       parsed.rrule       ?? null,
-                categories:  parsed.categories  ?? null,
-                parent_uid:  parsed.parent_uid  ?? null,
-                etag:        obj.etag,
-                updated_at:  new Date().toISOString(),
-            })
+                UPDATE entries SET
+                    type           = @type,
+                    title          = @title,
+                    body           = @body,
+                    start_date     = @start_date,
+                    due_date       = @due_date,
+                    completed_date = @completed_date,
+                    status         = @status,
+                    priority       = @priority,
+                    progress       = @progress,
+                    rrule          = @rrule,
+                    exdate         = @exdate,
+                    categories     = @categories,
+                    location       = @location,
+                    url            = @url,
+                    classification = @classification,
+                    color          = @color,
+                    comment        = @comment,
+                    contact        = @contact,
+                    geo            = @geo,
+                    duration       = @duration,
+                    alarms         = @alarms,
+                    sequence       = @sequence,
+                    parent_uid     = @parent_uid,
+                    etag           = @etag,
+                    dirty          = 0,
+                    updated_at     = @updated_at
+                WHERE id = @id
+            `).run(row)
         }
     }
 }

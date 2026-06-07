@@ -143,6 +143,38 @@ export function SettingsView() {
                         variant="primary"
                     />
                 </div>
+
+                {/* Reset sync cache */}
+                <div style={{ borderTop: '1px solid var(--border)', paddingTop: '24px', marginTop: '8px' }}>
+                    <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '12px', lineHeight: 1.5 }}>
+                        Force a full re-download of all entries from the server. Use this if
+                        fields like location or geo coordinates are missing after an update.
+                    </p>
+                    <ActionButton
+                        label="Reset Sync Cache & Re-sync"
+                        onClick={async () => {
+                            setStatus('syncing')
+                            setMessage('Clearing cache and re-syncing all entries…')
+                            setIsSyncing(true)
+                            try {
+                                await window.api.sync.resetCache()
+                                const result = await window.api.sync.now()
+                                const entries = await window.api.entries.getAll()
+                                setEntries(entries)
+                                if (result.last_synced_at) setLastSynced(result.last_synced_at)
+                                setStatus('ok')
+                                setMessage(`Re-sync complete — ${entries.length} entries loaded`)
+                            } catch {
+                                setStatus('error')
+                                setMessage('Re-sync failed')
+                            } finally {
+                                setIsSyncing(false)
+                            }
+                        }}
+                        disabled={status === 'testing' || status === 'syncing'}
+                        variant="secondary"
+                    />
+                </div>
             </div>
         </div>
     )

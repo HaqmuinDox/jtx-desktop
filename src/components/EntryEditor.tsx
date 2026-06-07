@@ -23,7 +23,7 @@ export function EntryEditor({ content, onChange, readOnly = false }: EntryEditor
         if (editor && !editor.isDestroyed) {
             const current = htmlToMarkdown(editor.getHTML())
             if (current !== content) {
-                editor.commands.setContent(markdownToHtml(content), false)
+                editor.commands.setContent(markdownToHtml(content), { emitUpdate: false })
             }
         }
     }, [content, editor])

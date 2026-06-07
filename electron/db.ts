@@ -16,6 +16,20 @@ export function getDb(): Database.Database {
   return db
 }
 
+function addColumnIfMissing(
+  db: Database.Database,
+  table: string,
+  column: string,
+  type: string,
+  defaultVal?: string
+) {
+  const info = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]
+  if (!info.find(col => col.name === column)) {
+    const def = defaultVal !== undefined ? ` DEFAULT ${defaultVal}` : ''
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${type}${def}`)
+  }
+}
+
 function runMigrations(db: Database.Database) {
   db.exec(`
     CREATE TABLE IF NOT EXISTS collections (
@@ -59,6 +73,20 @@ function runMigrations(db: Database.Database) {
     CREATE INDEX IF NOT EXISTS idx_entries_dirty   ON entries(dirty);
     CREATE INDEX IF NOT EXISTS idx_entries_deleted ON entries(deleted);
   `)
+
+  // Additive migrations for new fields — safe to run on existing databases
+  addColumnIfMissing(db, 'entries', 'completed_date',  'TEXT')
+  addColumnIfMissing(db, 'entries', 'location',        'TEXT')
+  addColumnIfMissing(db, 'entries', 'url',             'TEXT')
+  addColumnIfMissing(db, 'entries', 'classification',  'TEXT')
+  addColumnIfMissing(db, 'entries', 'color',           'TEXT')
+  addColumnIfMissing(db, 'entries', 'comment',         'TEXT')
+  addColumnIfMissing(db, 'entries', 'contact',         'TEXT')
+  addColumnIfMissing(db, 'entries', 'geo',             'TEXT')
+  addColumnIfMissing(db, 'entries', 'duration',        'TEXT')
+  addColumnIfMissing(db, 'entries', 'alarms',          'TEXT')
+  addColumnIfMissing(db, 'entries', 'exdate',          'TEXT')
+  addColumnIfMissing(db, 'entries', 'sequence',        'INTEGER', '0')
 }
 
 export function closeDb() {
