@@ -41,12 +41,22 @@ declare global {
 }
 
 export default function App() {
-    const { activeSection, selectedEntry, creatingType, setEntries } = useAppStore()
+    const { activeSection, selectedEntry, creatingType, setEntries, setDeviceLocation } = useAppStore()
 
     // Load all entries on mount
     useEffect(() => {
         window.api.entries.getAll().then(setEntries)
     }, [setEntries])
+
+    // Load user-configured default location from localStorage into the store
+    useEffect(() => {
+        try {
+            const raw = localStorage.getItem('jtx_default_location')
+            if (!raw) return
+            const loc = JSON.parse(raw) as { lat?: string; lon?: string; name?: string }
+            if (loc.lat && loc.lon) setDeviceLocation({ lat: loc.lat, lon: loc.lon, name: loc.name ?? null })
+        } catch { /* ignore */ }
+    }, [setDeviceLocation])
 
     const mainContent = () => {
         switch (activeSection) {
