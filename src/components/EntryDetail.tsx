@@ -199,6 +199,14 @@ export function EntryDetail() {
         setEditState(null)
     }
 
+    const handleDelete = async () => {
+        if (!selectedEntry) return
+        if (!window.confirm(`Delete "${selectedEntry.title || 'Untitled'}"? This will be removed from Nextcloud on the next sync.`)) return
+        await window.api.entries.delete(selectedEntry.id)
+        setEntries(entries.filter(e => e.id !== selectedEntry.id))
+        setSelectedEntry(null)
+    }
+
     const handleClose = () => {
         if (isCreating) {
             setCreatingType(null)
@@ -368,7 +376,10 @@ export function EntryDetail() {
                             <HeaderButton label="Cancel" onClick={handleCancel} />
                         </>
                     ) : (
-                        <HeaderButton label="Edit" onClick={handleEdit} />
+                        <>
+                            <HeaderButton label="Edit" onClick={handleEdit} />
+                            <HeaderButton label="Delete" onClick={handleDelete} danger />
+                        </>
                     )}
                     <HeaderButton label="×" onClick={handleClose} />
                 </div>
@@ -900,13 +911,13 @@ function isPast(iso: string): boolean {
 
 // ── Small helpers ─────────────────────────────────────────────────────────────
 
-function HeaderButton({ label, onClick, accent = false, disabled = false }: { label: string; onClick: () => void; accent?: boolean; disabled?: boolean }) {
+function HeaderButton({ label, onClick, accent = false, danger = false, disabled = false }: { label: string; onClick: () => void; accent?: boolean; danger?: boolean; disabled?: boolean }) {
     return (
         <button onClick={onClick} disabled={disabled} style={{
             background:   accent ? 'rgba(196,163,90,0.15)' : 'transparent',
             border:       accent ? '1px solid var(--accent-dim)' : 'none',
             borderRadius: 'var(--radius-sm)',
-            color:        accent ? 'var(--accent)' : 'var(--text-muted)',
+            color:        accent ? 'var(--accent)' : danger ? '#e07070' : 'var(--text-muted)',
             fontSize:     label === '×' ? '18px' : '12px',
             fontFamily:   'var(--font-ui)',
             padding:      '3px 8px',
