@@ -4,6 +4,12 @@ import type { Entry } from '../../shared/types'
 export type Section      = 'journals' | 'notes' | 'todos' | 'settings'
 export type CreatingType = 'journal'  | 'note'  | 'todo'
 
+export interface DeviceLocation {
+    lat:  string
+    lon:  string
+    name: string | null  // reverse-geocoded address, null if lookup failed
+}
+
 interface AppState {
     activeSection:    Section
     setActiveSection: (s: Section) => void
@@ -22,6 +28,9 @@ interface AppState {
     setIsSyncing: (v: boolean) => void
     lastSynced:   string | null
     setLastSynced:(v: string | null) => void
+
+    deviceLocation:    DeviceLocation | null
+    setDeviceLocation: (loc: DeviceLocation | null) => void
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -42,4 +51,7 @@ export const useAppStore = create<AppState>((set) => ({
     setIsSyncing: (isSyncing) => set({ isSyncing }),
     lastSynced:   null,
     setLastSynced:(lastSynced) => set({ lastSynced }),
+
+    deviceLocation:    null,
+    setDeviceLocation: (deviceLocation) => set({ deviceLocation }),
 }))

@@ -1,11 +1,18 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAppStore } from '../store/app.ts'
+import L from 'leaflet'
+import 'leaflet/dist/leaflet.css'
 
 export function SettingsView() {
-    const { setEntries, setLastSynced, setIsSyncing } = useAppStore()
+    const { setEntries, setLastSynced, setIsSyncing, setDeviceLocation } = useAppStore()
     const [serverUrl, setServerUrl] = useState('')
     const [username,  setUsername]  = useState('')
     const [password,  setPassword]  = useState('')
+
+    const [locName, setLocName] = useState('')
+    const [locLat,  setLocLat]  = useState('')
+    const [locLon,  setLocLon]  = useState('')
+    const [locSaved, setLocSaved] = useState(false)
 
     // Load saved credentials on mount
     useEffect(() => {
@@ -17,6 +24,26 @@ export function SettingsView() {
             }
         })
     }, [])
+
+    // Load saved default location on mount
+    useEffect(() => {
+        try {
+            const raw = localStorage.getItem('jtx_default_location')
+            if (!raw) return
+            const loc = JSON.parse(raw) as { lat?: string; lon?: string; name?: string }
+            setLocLat(loc.lat ?? '')
+            setLocLon(loc.lon ?? '')
+            setLocName(loc.name ?? '')
+        } catch { /* ignore */ }
+    }, [])
+
+    const handleSaveLocation = () => {
+        const loc = { lat: locLat.trim(), lon: locLon.trim(), name: locName.trim() || null }
+        localStorage.setItem('jtx_default_location', JSON.stringify(loc))
+        if (loc.lat && loc.lon) setDeviceLocation({ lat: loc.lat, lon: loc.lon, name: loc.name ?? null })
+        setLocSaved(true)
+        setTimeout(() => setLocSaved(false), 2000)
+    }
     const [status,    setStatus]    = useState<'idle' | 'testing' | 'syncing' | 'ok' | 'error'>('idle')
     const [message,   setMessage]   = useState<string | null>(null)
 
@@ -175,6 +202,48 @@ export function SettingsView() {
                         variant="secondary"
                     />
                 </div>
+
+                {/* Default location */}
+                <div style={{ borderTop: '1px solid var(--border)', paddingTop: '24px', marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div>
+                        <div style={{ fontSize: '14px', color: 'var(--text-primary)', marginBottom: '4px' }}>
+                            Default location
+                        </div>
+                        <div style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                            Pre-filled on every new entry. Leave blank to skip.
+                        </div>
+                    </div>
+
+                    <MapPicker
+                        lat={locLat}
+                        lon={locLon}
+                        onChange={(lat, lon) => { setLocLat(lat); setLocLon(lon) }}
+                    />
+
+                    <Field
+                        label="Location name"
+                        placeholder="Hamburg, Germany"
+                        value={locName}
+                        onChange={setLocName}
+                    />
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                        <Field label="Latitude"  placeholder="53.550341"  value={locLat} onChange={setLocLat} />
+                        <Field label="Longitude" placeholder="10.000654" value={locLon} onChange={setLocLon} />
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <ActionButton
+                            label="Save location"
+                            onClick={handleSaveLocation}
+                            disabled={false}
+                            variant="primary"
+                        />
+                        {locSaved && (
+                            <span style={{ fontSize: '12px', color: '#70c070' }}>Saved</span>
+                        )}
+                    </div>
+                </div>
             </div>
         </div>
     )
@@ -221,6 +290,78 @@ function Field({
                 onBlur={e  => e.target.style.borderColor = 'var(--border-strong)'}
             />
         </div>
+    )
+}
+
+// ── Map picker ────────────────────────────────────────────────────────────────
+
+// Custom pin icon — avoids Leaflet's default marker image path issues in Vite
+const PIN_HTML = '<div style="width:14px;height:14px;background:#c4a35a;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.5);"></div>'
+
+function MapPicker({ lat, lon, onChange }: {
+    lat:      string
+    lon:      string
+    onChange: (lat: string, lon: string) => void
+}) {
+    const containerRef = useRef<HTMLDivElement>(null)
+    const mapRef       = useRef<L.Map | null>(null)
+    const markerRef    = useRef<L.Marker | null>(null)
+    const onChangeRef  = useRef(onChange)
+    useEffect(() => { onChangeRef.current = onChange }, [onChange])
+
+    // Initialize map once on mount
+    useEffect(() => {
+        if (!containerRef.current || mapRef.current) return
+
+        const initLat = parseFloat(lat) || 53.5503
+        const initLon = parseFloat(lon) || 10.0006
+
+        const pinIcon = L.divIcon({ className: '', html: PIN_HTML, iconSize: [14, 14], iconAnchor: [7, 7] })
+
+        const map    = L.map(containerRef.current).setView([initLat, initLon], 12)
+        const marker = L.marker([initLat, initLon], { icon: pinIcon }).addTo(map)
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+            maxZoom: 19,
+        }).addTo(map)
+
+        map.on('click', (e: L.LeafletMouseEvent) => {
+            marker.setLatLng(e.latlng)
+            onChangeRef.current(e.latlng.lat.toFixed(6), e.latlng.lng.toFixed(6))
+        })
+
+        mapRef.current    = map
+        markerRef.current = marker
+
+        return () => {
+            map.remove()
+            mapRef.current    = null
+            markerRef.current = null
+        }
+    }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Sync marker position when lat/lon are edited via the text inputs
+    useEffect(() => {
+        if (!markerRef.current) return
+        const latNum = parseFloat(lat)
+        const lonNum = parseFloat(lon)
+        if (isNaN(latNum) || isNaN(lonNum)) return
+        markerRef.current.setLatLng([latNum, lonNum])
+        mapRef.current?.panTo([latNum, lonNum])
+    }, [lat, lon])
+
+    return (
+        <div
+            ref={containerRef}
+            style={{
+                width:        '100%',
+                height:       '280px',
+                borderRadius: 'var(--radius-md)',
+                overflow:     'hidden',
+                border:       '1px solid var(--border)',
+            }}
+        />
     )
 }
 

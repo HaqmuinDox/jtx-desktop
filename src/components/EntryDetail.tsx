@@ -4,6 +4,31 @@ import { useAppStore } from '../store/app'
 import { EntryEditor } from './EntryEditor'
 import type { Entry, AlarmObject } from '../../shared/types'
 
+// ── Entry defaults (persisted across sessions) ────────────────────────────────
+
+const ENTRY_DEFAULTS_KEY = 'jtx_entry_defaults'
+
+interface EntryDefaults {
+    collection:     string
+    classification: string
+    status:         Partial<Record<'journal' | 'note' | 'todo', string>>
+}
+
+function loadEntryDefaults(): EntryDefaults | null {
+    try {
+        const raw = localStorage.getItem(ENTRY_DEFAULTS_KEY)
+        return raw ? JSON.parse(raw) : null
+    } catch {
+        return null
+    }
+}
+
+function saveEntryDefaults(next: EntryDefaults): void {
+    try {
+        localStorage.setItem(ENTRY_DEFAULTS_KEY, JSON.stringify(next))
+    } catch { /* ignore */ }
+}
+
 // ── Edit state ────────────────────────────────────────────────────────────────
 
 interface EditState {
@@ -75,15 +100,19 @@ function initEditState(entry: Entry): EditState {
     }
 }
 
-function initBlankEditState(type: 'journal' | 'note' | 'todo'): EditState {
+function initBlankEditState(
+    type:      'journal' | 'note' | 'todo',
+    defaults?: EntryDefaults,
+    location?: DeviceLocation | null
+): EditState {
     const now = new Date()
     const pad = (n: number) => String(n).padStart(2, '0')
     const localNow = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`
     return {
         title:          '',
         body:           '',
-        status:         type === 'todo' ? 'NEEDS-ACTION' : '',
-        classification: '',
+        status:         defaults?.status?.[type] ?? (type === 'todo' ? 'NEEDS-ACTION' : ''),
+        classification: defaults?.classification ?? '',
         color:          '#c4a35a',
         start_date:     type === 'journal' ? localNow : '',
         due_date:       '',
@@ -93,12 +122,12 @@ function initBlankEditState(type: 'journal' | 'note' | 'todo'): EditState {
         rrule:          '',
         exdate:         '',
         categories:     '',
-        location:       '',
+        location:       location?.name ?? '',
         url:            '',
         comment:        '',
         contact:        '',
-        geo_lat:        '',
-        geo_lon:        '',
+        geo_lat:        location?.lat  ?? '',
+        geo_lon:        location?.lon  ?? '',
         duration:       '',
         alarms:         [],
     }
@@ -111,6 +140,7 @@ export function EntryDetail() {
         selectedEntry, setSelectedEntry,
         entries, setEntries,
         creatingType, setCreatingType, addEntry,
+        deviceLocation,
     } = useAppStore()
 
     const [isEditing, setIsEditing] = useState(false)
@@ -124,14 +154,33 @@ export function EntryDetail() {
     // Initialize blank form when entering create mode
     useEffect(() => {
         if (isCreating && creatingType) {
-            setEditState(initBlankEditState(creatingType))
+            const defaults = loadEntryDefaults()
+            setEditState(initBlankEditState(creatingType, defaults ?? undefined, deviceLocation))
+
             window.api.collections.getAll().then(cols => {
                 const typed = cols as { url: string; display_name: string | null }[]
                 setCollections(typed)
-                setSelectedCollection(typed[0]?.url ?? '')
+                const match = defaults?.collection
+                    ? typed.find(c => c.url === defaults.collection)
+                    : null
+                setSelectedCollection(match?.url ?? typed[0]?.url ?? '')
             })
         }
-    }, [isCreating, creatingType])
+    }, [isCreating, creatingType]) // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Fill location fields if device location arrives after the form is already open
+    useEffect(() => {
+        if (!isCreating || !deviceLocation) return
+        setEditState(prev => {
+            if (!prev || prev.geo_lat) return prev
+            return {
+                ...prev,
+                geo_lat:  deviceLocation.lat,
+                geo_lon:  deviceLocation.lon,
+                location: deviceLocation.name ?? '',
+            }
+        })
+    }, [isCreating, deviceLocation])
 
     if (!selectedEntry && !isCreating) return null
 
@@ -217,6 +266,14 @@ export function EntryDetail() {
         if (!editState || !creatingType || !selectedCollection) return
         setSaving(true)
         try {
+            // Remember this entry's context for the next new entry of the same type
+            const prev = loadEntryDefaults()
+            saveEntryDefaults({
+                collection:     selectedCollection,
+                classification: editState.classification,
+                status:         { ...prev?.status, [creatingType]: editState.status },
+            })
+
             const { id } = await window.api.entries.create({
                 type:       creatingType,
                 collection: selectedCollection,
