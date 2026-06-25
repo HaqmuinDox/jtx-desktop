@@ -10,7 +10,7 @@ const ALL_ENTRY_FIELDS = [
     'title', 'body', 'start_date', 'due_date', 'completed_date', 'status',
     'priority', 'progress', 'rrule', 'exdate', 'categories',
     'location', 'url', 'classification', 'color', 'comment', 'contact',
-    'geo', 'duration', 'alarms', 'sequence', 'parent_uid',
+    'geo', 'duration', 'alarms', 'parent_uid',
 ] as const
 
 export function registerIpcHandlers() {
@@ -200,19 +200,21 @@ export function registerIpcHandlers() {
         }
     })
 
-    ipcMain.handle('credentials:load', () => {
-        try {
-            const credPath = path.join(app.getPath('userData'), 'credentials.enc')
-            if (!fs.existsSync(credPath)) return null
-            const raw = fs.readFileSync(credPath)
-            if (safeStorage.isEncryptionAvailable()) {
-                const decrypted = safeStorage.decryptString(Buffer.from(raw))
-                return JSON.parse(decrypted)
-            } else {
-                return JSON.parse(raw.toString('utf-8'))
-            }
-        } catch (_e) {
-            return null
+    ipcMain.handle('credentials:load', () => loadCredentials())
+}
+
+export function loadCredentials(): Record<string, string> | null {
+    try {
+        const credPath = path.join(app.getPath('userData'), 'credentials.enc')
+        if (!fs.existsSync(credPath)) return null
+        const raw = fs.readFileSync(credPath)
+        if (safeStorage.isEncryptionAvailable()) {
+            const decrypted = safeStorage.decryptString(Buffer.from(raw))
+            return JSON.parse(decrypted)
+        } else {
+            return JSON.parse(raw.toString('utf-8'))
         }
-    })
+    } catch (_e) {
+        return null
+    }
 }

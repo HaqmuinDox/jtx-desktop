@@ -55,7 +55,7 @@ function initEditState(entry: Entry): EditState {
         body:           entry.body           ?? '',
         status:         entry.status         ?? '',
         classification: entry.classification ?? '',
-        color:          entry.color?.startsWith('#') ? entry.color : '#c4a35a',
+        color:          entry.color ?? '#c4a35a',
         start_date:     entry.start_date     ? toDatetimeLocal(entry.start_date)     : '',
         due_date:       entry.due_date       ? toDatetimeLocal(entry.due_date)       : '',
         completed_date: entry.completed_date ? toDatetimeLocal(entry.completed_date) : '',
@@ -131,7 +131,7 @@ export function EntryDetail() {
                 setSelectedCollection(typed[0]?.url ?? '')
             })
         }
-    }, [isCreating, creatingType]) // eslint-disable-line react-hooks/exhaustive-deps
+    }, [isCreating, creatingType])
 
     if (!selectedEntry && !isCreating) return null
 
@@ -214,18 +214,21 @@ export function EntryDetail() {
     }
 
     const handleCreate = async () => {
-        if (!editState || !creatingType) return
+        if (!editState || !creatingType || !selectedCollection) return
         setSaving(true)
-        const { id } = await window.api.entries.create({
-            type:       creatingType,
-            collection: selectedCollection,
-            ...assembleFields(editState),
-        })
-        const fresh = await window.api.entries.getById(id) as Entry
-        addEntry(fresh)
-        setSelectedEntry(fresh)
-        setEditState(null)
-        setSaving(false)
+        try {
+            const { id } = await window.api.entries.create({
+                type:       creatingType,
+                collection: selectedCollection,
+                ...assembleFields(editState),
+            })
+            const fresh = await window.api.entries.getById(id) as Entry
+            addEntry(fresh)
+            setSelectedEntry(fresh)
+            setEditState(null)
+        } finally {
+            setSaving(false)
+        }
     }
 
     const currentType = isCreating ? creatingType! : selectedEntry!.type
@@ -299,7 +302,7 @@ export function EntryDetail() {
                 <div style={{ display: 'flex', gap: '5px', flexShrink: 0 }}>
                     {isCreating ? (
                         <>
-                            <HeaderButton label={saving ? '…' : 'Create'} onClick={handleCreate} accent />
+                            <HeaderButton label={saving ? '…' : 'Create'} onClick={handleCreate} accent disabled={!selectedCollection || saving} />
                             <HeaderButton label="Cancel" onClick={handleClose} />
                         </>
                     ) : isEditing ? (
@@ -342,7 +345,7 @@ export function EntryDetail() {
                             </FormField>
                         ) : (
                             <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0 }}>
-                                No collections found — the entry will be saved locally and synced after connecting to Nextcloud.
+                                No collections found — sync with Nextcloud first (Settings) to create a collection.
                             </p>
                         )}
                         <EditForm
@@ -840,9 +843,9 @@ function isPast(iso: string): boolean {
 
 // ── Small helpers ─────────────────────────────────────────────────────────────
 
-function HeaderButton({ label, onClick, accent = false }: { label: string; onClick: () => void; accent?: boolean }) {
+function HeaderButton({ label, onClick, accent = false, disabled = false }: { label: string; onClick: () => void; accent?: boolean; disabled?: boolean }) {
     return (
-        <button onClick={onClick} style={{
+        <button onClick={onClick} disabled={disabled} style={{
             background:   accent ? 'rgba(196,163,90,0.15)' : 'transparent',
             border:       accent ? '1px solid var(--accent-dim)' : 'none',
             borderRadius: 'var(--radius-sm)',
@@ -850,8 +853,9 @@ function HeaderButton({ label, onClick, accent = false }: { label: string; onCli
             fontSize:     label === '×' ? '18px' : '12px',
             fontFamily:   'var(--font-ui)',
             padding:      '3px 8px',
-            cursor:       'pointer',
+            cursor:       disabled ? 'not-allowed' : 'pointer',
             lineHeight:   1,
+            opacity:      disabled ? 0.4 : 1,
         }}>{label}</button>
     )
 }

@@ -75,9 +75,7 @@ function NoteCard({
     isSelected: boolean
     onClick:    () => void
 }) {
-    const tags = note.categories
-        ? JSON.parse(note.categories) as string[]
-        : []
+    const tags: string[] = (() => { try { return note.categories ? JSON.parse(note.categories) : [] } catch { return [] } })()
 
     const preview = note.body
         ? note.body.replace(/[#*`_]/g, '').slice(0, 180)

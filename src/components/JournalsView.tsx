@@ -102,7 +102,7 @@ function JournalRow({
     const date    = new Date(entry.start_date ?? entry.created_at)
     const dayNum  = date.toLocaleDateString('en-US', { day: '2-digit' })
     const dayName = date.toLocaleDateString('en-US', { weekday: 'short' })
-    const tags    = entry.categories ? JSON.parse(entry.categories) as string[] : []
+    const tags: string[] = (() => { try { return entry.categories ? JSON.parse(entry.categories) : [] } catch { return [] } })()
 
     return (
         <div

@@ -3,9 +3,7 @@ import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { getDb, closeDb } from './db'
-import { registerIpcHandlers } from './ipc'
-import { safeStorage } from 'electron'
-import fs from 'node:fs'
+import { registerIpcHandlers, loadCredentials } from './ipc'
 import { setCredentials, startSyncInterval, sync } from './sync/engine'
 
 
@@ -40,21 +38,14 @@ function createWindow() {
     },
   })
 
-  // Test active push message to Renderer-process.
-  win.webContents.on('did-finish-load', () => {
-    win?.webContents.send('main-process-message', (new Date).toLocaleString())
-  })
-
   if (VITE_DEV_SERVER_URL) {
     win.loadURL(VITE_DEV_SERVER_URL)
   } else {
-    // win.loadFile('dist/index.html')
     win.loadFile(path.join(RENDERER_DIST, 'index.html'))
   }
 
     win.webContents.on('did-finish-load', () => {
         win?.webContents.send('main-process-message', (new Date).toLocaleString())
-        // Auto-sync on window ready if credentials are loaded
         sync().catch(err => console.error('startup sync error:', err))
     })
 }
@@ -83,19 +74,10 @@ app.whenReady().then(async () => {
     createWindow()
 
     // Auto-load saved credentials and start sync
-    try {
-        const credPath = path.join(app.getPath('userData'), 'credentials.enc')
-        if (fs.existsSync(credPath)) {
-            const raw = fs.readFileSync(credPath)
-            const plain = safeStorage.isEncryptionAvailable()
-                ? safeStorage.decryptString(Buffer.from(raw))
-                : raw.toString('utf-8')
-            const creds = JSON.parse(plain)
-            setCredentials(creds)
-            startSyncInterval()
-        }
-    } catch (_e) {
-        // No saved credentials — user will enter them in Settings
+    const savedCreds = loadCredentials()
+    if (savedCreds) {
+        setCredentials(savedCreds)
+        startSyncInterval()
     }
 })
 

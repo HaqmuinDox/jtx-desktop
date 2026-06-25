@@ -217,8 +217,7 @@ export function serializeEntry(entry: Entry): string {
         item.addPropertyWithValue('dtstart', ICAL.Time.fromJSDate(new Date(entry.start_date), false))
     }
 
-    // ── SEQUENCE (increment on each push) ────────────────────────────────────
-    item.addPropertyWithValue('sequence', (entry.sequence ?? 0) + 1)
+    item.addPropertyWithValue('sequence', entry.sequence ?? 0)
 
     // ── Status ───────────────────────────────────────────────────────────────
     if (entry.status) {

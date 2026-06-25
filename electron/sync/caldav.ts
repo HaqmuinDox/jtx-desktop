@@ -156,7 +156,8 @@ export async function pushObject(
     existingEtag:  string | null
 ): Promise<string> {
     const client    = await makeClient(creds)
-    const objectUrl = `${collectionUrl}${entryId}.ics`
+    const base      = collectionUrl.endsWith('/') ? collectionUrl : `${collectionUrl}/`
+    const objectUrl = `${base}${entryId}.ics`
 
     if (existingEtag) {
         // Update existing object
@@ -189,8 +190,9 @@ export async function deleteObject(
     entryId:       string,
     existingEtag:  string | null
 ): Promise<void> {
-    const client = await makeClient(creds)
-    const objectUrl = `${collectionUrl}${entryId}.ics`
+    const client    = await makeClient(creds)
+    const base      = collectionUrl.endsWith('/') ? collectionUrl : `${collectionUrl}/`
+    const objectUrl = `${base}${entryId}.ics`
 
     await client.deleteCalendarObject({
         calendarObject: {

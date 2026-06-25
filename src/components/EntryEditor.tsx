@@ -68,20 +68,27 @@ export function EntryEditor({ content, onChange, readOnly = false }: EntryEditor
 // TipTap works with HTML internally. We convert to/from Markdown for storage
 // so the iCal DESCRIPTION field stays as plain Markdown (jtx Board compatible).
 
+function applyInline(text: string): string {
+    return text
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.+?)\*/g,     '<em>$1</em>')
+        .replace(/`(.+?)`/g,       '<code>$1</code>')
+}
+
 function markdownToHtml(md: string): string {
     if (!md) return '<p></p>'
     return md
         .split('\n\n')
         .map(block => {
-            if (block.startsWith('# '))    return `<h1>${block.slice(2)}</h1>`
-            if (block.startsWith('## '))   return `<h2>${block.slice(3)}</h2>`
-            if (block.startsWith('### '))  return `<h3>${block.slice(4)}</h3>`
-            if (block.startsWith('> '))    return `<blockquote><p>${block.slice(2)}</p></blockquote>`
+            if (block.startsWith('# '))    return `<h1>${applyInline(block.slice(2))}</h1>`
+            if (block.startsWith('## '))   return `<h2>${applyInline(block.slice(3))}</h2>`
+            if (block.startsWith('### '))  return `<h3>${applyInline(block.slice(4))}</h3>`
+            if (block.startsWith('> '))    return `<blockquote><p>${applyInline(block.slice(2))}</p></blockquote>`
             if (block.match(/^[-*] /m)) {
                 const items = block
                     .split('\n')
                     .filter(l => l.trim())
-                    .map(l => `<li><p>${l.replace(/^[-*] /, '')}</p></li>`)
+                    .map(l => `<li><p>${applyInline(l.replace(/^[-*] /, ''))}</p></li>`)
                     .join('')
                 return `<ul>${items}</ul>`
             }
@@ -89,18 +96,11 @@ function markdownToHtml(md: string): string {
                 const items = block
                     .split('\n')
                     .filter(l => l.trim())
-                    .map(l => `<li><p>${l.replace(/^\d+\. /, '')}</p></li>`)
+                    .map(l => `<li><p>${applyInline(l.replace(/^\d+\. /, ''))}</p></li>`)
                     .join('')
                 return `<ol>${items}</ol>`
             }
-            // Inline: bold, italic, code
-            const inline = block
-                .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-                .replace(/\*(.+?)\*/g,     '<em>$1</em>')
-                .replace(/`(.+?)`/g,       '<code>$1</code>')
-                .split('\n')
-                .join('<br>')
-            return `<p>${inline}</p>`
+            return `<p>${applyInline(block).split('\n').join('<br>')}</p>`
         })
         .join('')
 }

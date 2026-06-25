@@ -34,7 +34,7 @@ export function getSyncStatus(): SyncStatus {
         SELECT COUNT(*) as count FROM entries
         WHERE dirty = 1 AND deleted = 0
         AND collection IN (SELECT url FROM collections)
-    `).get() as any).count
+    `).get() as { count: number }).count
     return { ...syncStatus, pending_changes: pending }
 }
 
@@ -90,12 +90,12 @@ export async function sync(): Promise<SyncStatus> {
             pending_changes: 0,
             error_message:   null,
         }
-    } catch (err: any) {
+    } catch (err) {
         console.error('sync error:', err)
         syncStatus = {
             ...syncStatus,
             state:         'error',
-            error_message: err?.message ?? 'Unknown sync error',
+            error_message: err instanceof Error ? err.message : 'Unknown sync error',
         }
     }
 
@@ -144,20 +144,30 @@ async function syncCollection(col: Collection) {
     // ── Step 3: Fetch remote ETags ────────────────────────────────────────────
     const remoteEtags = await fetchEtags(credentials, col.url)
 
-    // Build a map of what we have locally
-    const localEntries = db.prepare(
+    // Active entries: used for server-deletion detection (Step 4)
+    const localActive = db.prepare(
         'SELECT id, etag FROM entries WHERE collection = ? AND deleted = 0'
     ).all(col.url) as { id: string; etag: string | null }[]
 
-    const localMap  = new Map(localEntries.map(e => [e.id, e.etag]))
+    // All entries including pending deletions: used to build the ETag map for
+    // Step 5 so entries awaiting deletion aren't mistaken for new server items
+    // and re-pulled, which would undo a delete whose push hasn't succeeded yet.
+    const allLocal = db.prepare(
+        'SELECT id, etag FROM entries WHERE collection = ?'
+    ).all(col.url) as { id: string; etag: string | null }[]
+
+    const localMap = new Map(allLocal.map(e => [e.id, e.etag]))
 
     // ── Step 4: Detect server deletions ───────────────────────────────────────
-    // Entries in local but not on server → server deleted them
+    // Only active entries (deleted=0) can be server-deleted. Only entries that
+    // were previously synced (etag !== null) qualify — an entry with etag=null
+    // was never confirmed on the server, so a missing remote record means the
+    // push failed, not that the server deleted it.
     const remoteIds = new Set(
         remoteEtags.map(r => extractIdFromUrl(r.url))
     )
-    for (const local of localEntries) {
-        if (!remoteIds.has(local.id)) {
+    for (const local of localActive) {
+        if (!remoteIds.has(local.id) && local.etag !== null) {
             db.prepare('DELETE FROM entries WHERE id = ?').run(local.id)
         }
     }
@@ -165,7 +175,7 @@ async function syncCollection(col: Collection) {
     // ── Step 5: Pull changed or new entries from server ───────────────────────
     const urlsToFetch = remoteEtags
         .filter(r => {
-            const id       = extractIdFromUrl(r.url)
+            const id        = extractIdFromUrl(r.url)
             const localEtag = localMap.get(id)
             return localEtag === undefined || localEtag !== r.etag
         })

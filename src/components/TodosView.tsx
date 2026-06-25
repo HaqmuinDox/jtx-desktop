@@ -131,9 +131,7 @@ function TodoRow({
     onClick:   () => void
     subtasks:  Entry[]
 }) {
-    const tags    = entry.categories
-        ? JSON.parse(entry.categories) as string[]
-        : []
+    const tags: string[] = (() => { try { return entry.categories ? JSON.parse(entry.categories) : [] } catch { return [] } })()
     const isDone  = entry.status === 'COMPLETED' || entry.status === 'CANCELLED'
     const dueDate = entry.due_date
         ? new Date(entry.due_date).toLocaleDateString('en-US', {
