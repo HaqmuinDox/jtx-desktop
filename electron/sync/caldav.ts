@@ -55,7 +55,7 @@ export async function discoverCollections(
             display_name: typeof cal.displayName === 'string' ? cal.displayName : null,
             type:         inferCollectionType(cal.components ?? []),
             ctag:  (cal as Record<string, unknown>).ctag  as string ?? null,
-            color: (cal as Record<string, unknown>).color as string ?? null,
+            color: cal.calendarColor ?? null,
         }))
 }
 
