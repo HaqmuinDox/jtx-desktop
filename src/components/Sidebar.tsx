@@ -15,42 +15,65 @@ export function Sidebar() {
 
     return (
         <aside style={{
-            width:          sidebarCollapsed ? '48px' : 'var(--sidebar-width)',
-            minWidth:       sidebarCollapsed ? '48px' : 'var(--sidebar-width)',
-            background:     'var(--bg-surface)',
-            display:        'flex',
-            flexDirection:  'column',
-            padding:        '24px 0 12px',
-            borderRight:    '1px solid var(--border)',
-            transition:     'width 0.2s ease',
-            overflow:       'hidden',
+            width:         sidebarCollapsed ? '48px' : 'var(--sidebar-width)',
+            minWidth:      sidebarCollapsed ? '48px' : 'var(--sidebar-width)',
+            background:    'var(--bg-surface)',
+            display:       'flex',
+            flexDirection: 'column',
+            padding:       '16px 0 12px',
+            borderRight:   '1px solid var(--border)',
+            transition:    'width 0.2s ease',
+            overflow:      'hidden',
         }}>
-            {/* App title */}
-            {!sidebarCollapsed && (
-                <div style={{
-                    padding:      '0 20px 28px',
-                    borderBottom: '1px solid var(--border)',
-                    marginBottom: '12px',
-                }}>
-                    <div style={{
-                        fontFamily:  'var(--font-display)',
-                        fontSize:    '20px',
-                        color:       'var(--text-primary)',
-                        lineHeight:  1.2,
-                    }}>
-                        jtx
+            {/* Header: hamburger + app title */}
+            <div style={{
+                display:        'flex',
+                alignItems:     'center',
+                gap:            '10px',
+                padding:        sidebarCollapsed ? '0 0 16px' : '0 16px 16px',
+                marginBottom:   '12px',
+                borderBottom:   '1px solid var(--border)',
+                justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
+            }}>
+                <button
+                    onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                    title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                    aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                    style={{
+                        background: 'transparent',
+                        border:     'none',
+                        color:      'var(--text-muted)',
+                        cursor:     'pointer',
+                        fontSize:   '18px',
+                        lineHeight: 1,
+                        padding:    '2px 4px',
+                        flexShrink: 0,
+                    }}
+                >
+                    ☰
+                </button>
+                {!sidebarCollapsed && (
+                    <div>
+                        <div style={{
+                            fontFamily: 'var(--font-display)',
+                            fontSize:   '20px',
+                            color:      'var(--text-primary)',
+                            lineHeight: 1.2,
+                        }}>
+                            jtx
+                        </div>
+                        <div style={{
+                            fontSize:      '11px',
+                            color:         'var(--text-muted)',
+                            marginTop:     '2px',
+                            letterSpacing: '0.05em',
+                            textTransform: 'uppercase',
+                        }}>
+                            desktop
+                        </div>
                     </div>
-                    <div style={{
-                        fontSize:  '11px',
-                        color:     'var(--text-muted)',
-                        marginTop: '2px',
-                        letterSpacing: '0.05em',
-                        textTransform: 'uppercase',
-                    }}>
-                        desktop
-                    </div>
-                </div>
-            )}
+                )}
+            </div>
 
             {/* Search input */}
             {!sidebarCollapsed && (
@@ -61,16 +84,16 @@ export function Sidebar() {
                         value={searchQuery}
                         onChange={e => setSearchQuery(e.target.value)}
                         style={{
-                            width: '100%',
-                            background: 'var(--bg-raised)',
-                            border: '1px solid var(--border)',
+                            width:        '100%',
+                            background:   'var(--bg-raised)',
+                            border:       '1px solid var(--border)',
                             borderRadius: 'var(--radius-md)',
-                            color: 'var(--text-primary)',
-                            fontFamily: 'var(--font-ui)',
-                            fontSize: '12px',
-                            padding: '7px 10px',
-                            outline: 'none',
-                            boxSizing: 'border-box',
+                            color:        'var(--text-primary)',
+                            fontFamily:   'var(--font-ui)',
+                            fontSize:     '12px',
+                            padding:      '7px 10px',
+                            outline:      'none',
+                            boxSizing:    'border-box',
                         }}
                     />
                 </div>
@@ -108,9 +131,9 @@ export function Sidebar() {
                                     : '2px solid transparent',
                             }}
                         >
-              <span aria-hidden="true" style={{ fontSize: '14px', opacity: isActive ? 1 : 0.6 }}>
-                {icon}
-              </span>
+                            <span aria-hidden="true" style={{ fontSize: '14px', opacity: isActive ? 1 : 0.6 }}>
+                                {icon}
+                            </span>
                             {!sidebarCollapsed && label}
                         </button>
                     )
@@ -120,9 +143,9 @@ export function Sidebar() {
             {/* Settings at bottom */}
             <div style={{ padding: '0 8px' }}>
                 <div style={{
-                    height:       '1px',
-                    background:   'var(--border)',
-                    margin:       '8px 4px 10px',
+                    height:     '1px',
+                    background: 'var(--border)',
+                    margin:     '8px 4px 10px',
                 }} />
                 <button
                     onClick={() => setActiveSection('settings')}
@@ -153,26 +176,6 @@ export function Sidebar() {
                     {!sidebarCollapsed && 'Settings'}
                 </button>
             </div>
-
-            {/* Collapse toggle */}
-            <button
-                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-                style={{
-                    width:           '100%',
-                    display:         'flex',
-                    alignItems:      'center',
-                    justifyContent:  sidebarCollapsed ? 'center' : 'flex-end',
-                    padding:         '8px 12px',
-                    background:      'transparent',
-                    border:          'none',
-                    color:           'var(--text-muted)',
-                    cursor:          'pointer',
-                    fontSize:        '14px',
-                }}
-            >
-                {sidebarCollapsed ? '→' : '←'}
-            </button>
         </aside>
     )
 }
