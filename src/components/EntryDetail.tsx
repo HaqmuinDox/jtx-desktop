@@ -280,9 +280,13 @@ export function EntryDetail() {
     }
 
     const handleToggleSubtask = async (sub: Entry) => {
-        const newStatus = (sub.status === 'COMPLETED' || sub.status === 'CANCELLED')
-            ? 'NEEDS-ACTION'
-            : 'COMPLETED'
+        // Non-leaf nodes have cascade-derived status — toggling them directly would
+        // create inconsistency with their children's statuses.
+        if (entries.some(e => e.parent_uid === sub.id)) return
+
+        const isDone    = sub.status === 'COMPLETED' || sub.status === 'CANCELLED'
+            || (sub.progress ?? 0) >= 100
+        const newStatus = isDone ? 'NEEDS-ACTION' : 'COMPLETED'
         await window.api.entries.update(sub.id, {
             status:   newStatus,
             progress: STATUS_PROGRESS[newStatus],
@@ -1100,7 +1104,9 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 }
 
 function SubtaskRow({ subtask, onClick, onToggle }: { subtask: Entry; onClick: () => void; onToggle: () => void }) {
-    const isDone = subtask.status === 'COMPLETED' || subtask.status === 'CANCELLED'
+    const isDone = (subtask.progress ?? 0) >= 100
+        || subtask.status === 'COMPLETED'
+        || subtask.status === 'CANCELLED'
     return (
         <div
             onClick={onClick}
