@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useAppStore } from '../store/app.ts'
 import type { Entry } from '../../shared/types'
 
@@ -30,13 +31,28 @@ const STATUS_GROUPS = [
 
 export function TodosView() {
     const { entries, selectedEntry, setSelectedEntry, setCreatingType } = useAppStore()
+    const [sortBy, setSortBy] = useState<'priority' | 'due' | 'alpha' | 'updated'>('priority')
+    const [showCompleted, setShowCompleted] = useState(true)
 
     const todos = entries
         .filter(e => e.type === 'todo' && !e.parent_uid)
         .sort((a, b) => {
-            const pa = a.priority ?? 9
-            const pb = b.priority ?? 9
-            if (pa !== pb) return pa - pb
+            if (sortBy === 'priority') {
+                const pa = a.priority ?? 9
+                const pb = b.priority ?? 9
+                if (pa !== pb) return pa - pb
+                return b.updated_at.localeCompare(a.updated_at)
+            }
+            if (sortBy === 'due') {
+                if (!a.due_date && !b.due_date) return 0
+                if (!a.due_date) return 1
+                if (!b.due_date) return -1
+                return a.due_date.localeCompare(b.due_date)
+            }
+            if (sortBy === 'alpha') {
+                return (a.title ?? '').toLowerCase().localeCompare((b.title ?? '').toLowerCase())
+            }
+            // updated
             return b.updated_at.localeCompare(a.updated_at)
         })
 
@@ -78,10 +94,49 @@ export function TodosView() {
                         {todos.length}
                     </span>
                 </h1>
-                <NewButton onClick={() => setCreatingType('todo')} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <button
+                        onClick={() => setShowCompleted(v => !v)}
+                        style={{
+                            background:   'transparent',
+                            border:       '1px solid var(--border)',
+                            borderRadius: 'var(--radius-sm)',
+                            color:        'var(--text-muted)',
+                            fontSize:     '11px',
+                            fontFamily:   'var(--font-ui)',
+                            padding:      '3px 8px',
+                            cursor:       'pointer',
+                        }}
+                    >
+                        {showCompleted ? 'Hide done' : 'Show done'}
+                    </button>
+                    <select
+                        value={sortBy}
+                        onChange={e => setSortBy(e.target.value as 'priority' | 'due' | 'alpha' | 'updated')}
+                        style={{
+                            background:   'var(--bg-raised)',
+                            border:       '1px solid var(--border)',
+                            borderRadius: 'var(--radius-sm)',
+                            color:        'var(--text-secondary)',
+                            fontSize:     '12px',
+                            fontFamily:   'var(--font-ui)',
+                            padding:      '4px 8px',
+                            cursor:       'pointer',
+                        }}
+                    >
+                        <option value="priority">Priority</option>
+                        <option value="due">Due date</option>
+                        <option value="alpha">A → Z</option>
+                        <option value="updated">Last updated</option>
+                    </select>
+                    <NewButton onClick={() => setCreatingType('todo')} />
+                </div>
             </div>
 
             {STATUS_GROUPS.map(({ status, label, color }) => {
+                const isDoneGroup = status === 'COMPLETED' || status === 'CANCELLED'
+                if (isDoneGroup && !showCompleted) return null
+
                 const group = todos.filter(e => (e.status ?? 'NEEDS-ACTION') === status)
                 if (group.length === 0) return null
                 return (
@@ -151,6 +206,7 @@ function TodoRow({
     onClick:   () => void
     subtasks:  Entry[]
 }) {
+    const { setEntries } = useAppStore()
     const tags: string[] = (() => { try { return entry.categories ? JSON.parse(entry.categories) : [] } catch { return [] } })()
     const isDone  = entry.status === 'COMPLETED' || entry.status === 'CANCELLED'
     const dueDate = entry.due_date
@@ -161,6 +217,17 @@ function TodoRow({
     const isOverdue = entry.due_date
         && new Date(entry.due_date) < new Date()
         && !isDone
+
+    const handleCheckboxClick = (e: React.MouseEvent) => {
+        e.stopPropagation()
+        const status   = isDone ? 'NEEDS-ACTION' : 'COMPLETED'
+        const progress = isDone ? 0 : 100
+        window.api.entries.update(entry.id, { status, progress }).then(() => {
+            window.api.entries.getAll().then(setEntries)
+        })
+    }
+
+    const checkboxBorderColor = isDone ? 'var(--text-muted)' : 'var(--border-strong)'
 
     return (
         <div
@@ -189,20 +256,30 @@ function TodoRow({
             }}
         >
             {/* Checkbox circle */}
-            <div style={{
-                width:        '16px',
-                height:       '16px',
-                minWidth:     '16px',
-                borderRadius: '50%',
-                border:       `1.5px solid ${isDone ? 'var(--text-muted)' : 'var(--border-strong)'}`,
-                background:   isDone ? 'var(--text-muted)' : 'transparent',
-                marginTop:    '1px',
-                display:      'flex',
-                alignItems:   'center',
-                justifyContent: 'center',
-                fontSize:     '9px',
-                color:        'var(--bg-base)',
-            }}>
+            <div
+                onClick={handleCheckboxClick}
+                onMouseEnter={e => {
+                    (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--accent-dim)'
+                }}
+                onMouseLeave={e => {
+                    (e.currentTarget as HTMLDivElement).style.borderColor = checkboxBorderColor
+                }}
+                style={{
+                    width:          '16px',
+                    height:         '16px',
+                    minWidth:       '16px',
+                    borderRadius:   '50%',
+                    border:         `1.5px solid ${checkboxBorderColor}`,
+                    background:     isDone ? 'var(--text-muted)' : 'transparent',
+                    marginTop:      '1px',
+                    display:        'flex',
+                    alignItems:     'center',
+                    justifyContent: 'center',
+                    fontSize:       '9px',
+                    color:          'var(--bg-base)',
+                    cursor:         'pointer',
+                }}
+            >
                 {isDone && '✓'}
             </div>
 
