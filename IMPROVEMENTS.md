@@ -33,7 +33,7 @@ Items are grouped by priority. Agents assigned in parentheses where applicable.
 - [x] **Word count / reading time** — Shown below editor; reading time appears at 200+ words *(Agent 1)*
 - [x] **Placeholder text in editor** — "Start writing…" via Tiptap Placeholder extension *(Agent 1)*
 - [x] **Journal "Untitled" fallback** — 3-tier fallback in both journals and notes: title → first body line (italic) → "Untitled" (muted italic) *(Agent 4)*
-- [ ] **Resizable panels** — Sidebar (220px) and detail panel (420px) are fixed-width
+- [x] **Resizable panels** — Detail panel is drag-resizable (300–700px); width persisted to localStorage. Sidebar width is intentionally fixed.
 - [ ] **Collections in sidebar** — Nextcloud collections not visible in navigation
 - [x] **About / version info** — About section at the bottom of Settings; shows app name, version (from package.json), and author
 - [ ] **Autosave + inline editing** — Hard Edit/Save/Cancel cycle; professional apps autosave

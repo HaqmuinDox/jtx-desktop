@@ -439,7 +439,6 @@ export function EntryDetail() {
             width:         'var(--detail-width)',
             minWidth:      'var(--detail-width)',
             background:    'var(--bg-surface)',
-            borderLeft:    '1px solid var(--border)',
             display:       'flex',
             flexDirection: 'column',
             overflow:      'hidden',
