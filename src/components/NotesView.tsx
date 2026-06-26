@@ -4,8 +4,12 @@ import type { Entry } from '../../shared/types'
 
 export function NotesView() {
     const { entries, selectedEntry, setSelectedEntry, setCreatingType, searchQuery } = useAppStore()
-    const [sortOrder, setSortOrder] = useState<'updated' | 'created' | 'alpha'>('updated')
-    const [layout, setLayout] = useState<'grid' | 'list'>('grid')
+    const [sortOrder, setSortOrder] = useState<'updated' | 'created' | 'alpha'>(
+        () => (localStorage.getItem('jtx_notes_sort') as 'updated' | 'created' | 'alpha' | null) ?? 'updated'
+    )
+    const [layout, setLayout] = useState<'grid' | 'list'>(
+        () => (localStorage.getItem('jtx_notes_layout') as 'grid' | 'list' | null) ?? 'grid'
+    )
 
     const notes = entries
         .filter(e => e.type === 'note')
@@ -69,7 +73,7 @@ export function NotesView() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     {/* Layout toggles */}
                     <button
-                        onClick={() => setLayout('grid')}
+                        onClick={() => { localStorage.setItem('jtx_notes_layout', 'grid'); setLayout('grid') }}
                         style={{
                             background:   layout === 'grid' ? 'var(--bg-active)' : 'transparent',
                             border:       '1px solid var(--border)',
@@ -82,7 +86,7 @@ export function NotesView() {
                         title="Grid view"
                     >⊞</button>
                     <button
-                        onClick={() => setLayout('list')}
+                        onClick={() => { localStorage.setItem('jtx_notes_layout', 'list'); setLayout('list') }}
                         style={{
                             background:   layout === 'list' ? 'var(--bg-active)' : 'transparent',
                             border:       '1px solid var(--border)',
@@ -97,7 +101,11 @@ export function NotesView() {
                     {/* Sort select */}
                     <select
                         value={sortOrder}
-                        onChange={e => setSortOrder(e.target.value as 'updated' | 'created' | 'alpha')}
+                        onChange={e => {
+                            const v = e.target.value as 'updated' | 'created' | 'alpha'
+                            localStorage.setItem('jtx_notes_sort', v)
+                            setSortOrder(v)
+                        }}
                         style={{
                             background:   'var(--bg-raised)',
                             border:       '1px solid var(--border)',

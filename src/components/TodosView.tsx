@@ -31,9 +31,15 @@ const STATUS_GROUPS = [
 
 export function TodosView() {
     const { entries, selectedEntry, setSelectedEntry, setCreatingType, searchQuery } = useAppStore()
-    const [sortBy, setSortBy] = useState<'priority' | 'due' | 'alpha' | 'updated'>('priority')
-    const [sortAsc, setSortAsc] = useState(true)
-    const [showCompleted, setShowCompleted] = useState(true)
+    const [sortBy, setSortBy] = useState<'priority' | 'due' | 'alpha' | 'updated'>(
+        () => (localStorage.getItem('jtx_todos_sort') as 'priority' | 'due' | 'alpha' | 'updated' | null) ?? 'priority'
+    )
+    const [sortAsc, setSortAsc] = useState<boolean>(
+        () => localStorage.getItem('jtx_todos_sort_asc') !== 'false'
+    )
+    const [showCompleted, setShowCompleted] = useState<boolean>(
+        () => localStorage.getItem('jtx_todos_show_completed') !== 'false'
+    )
 
     const todos = entries
         .filter(e => e.type === 'todo' && !e.parent_uid)
@@ -112,7 +118,11 @@ export function TodosView() {
                 </h1>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <button
-                        onClick={() => setShowCompleted(v => !v)}
+                        onClick={() => {
+                            const next = !showCompleted
+                            localStorage.setItem('jtx_todos_show_completed', String(next))
+                            setShowCompleted(next)
+                        }}
                         style={{
                             background:   'transparent',
                             border:       '1px solid var(--border)',
@@ -128,7 +138,11 @@ export function TodosView() {
                     </button>
                     <select
                         value={sortBy}
-                        onChange={e => setSortBy(e.target.value as 'priority' | 'due' | 'alpha' | 'updated')}
+                        onChange={e => {
+                            const v = e.target.value as 'priority' | 'due' | 'alpha' | 'updated'
+                            localStorage.setItem('jtx_todos_sort', v)
+                            setSortBy(v)
+                        }}
                         style={{
                             background:   'var(--bg-raised)',
                             border:       '1px solid var(--border)',
@@ -146,7 +160,11 @@ export function TodosView() {
                         <option value="updated">Last updated</option>
                     </select>
                     <button
-                        onClick={() => setSortAsc(v => !v)}
+                        onClick={() => {
+                            const next = !sortAsc
+                            localStorage.setItem('jtx_todos_sort_asc', String(next))
+                            setSortAsc(next)
+                        }}
                         title={sortAsc ? 'Ascending — click to reverse' : 'Descending — click to reverse'}
                         style={{
                             background:   'transparent',

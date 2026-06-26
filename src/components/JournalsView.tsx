@@ -4,7 +4,9 @@ import type { Entry } from '../../shared/types'
 
 export function JournalsView() {
     const { entries, selectedEntry, setSelectedEntry, setCreatingType, searchQuery } = useAppStore()
-    const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest')
+    const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>(
+        () => (localStorage.getItem('jtx_journals_sort') as 'newest' | 'oldest' | null) ?? 'newest'
+    )
 
     const journals = entries
         .filter(e => e.type === 'journal')
@@ -70,7 +72,11 @@ export function JournalsView() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <select
                         value={sortOrder}
-                        onChange={e => setSortOrder(e.target.value as 'newest' | 'oldest')}
+                        onChange={e => {
+                            const v = e.target.value as 'newest' | 'oldest'
+                            localStorage.setItem('jtx_journals_sort', v)
+                            setSortOrder(v)
+                        }}
                         style={{
                             background:   'var(--bg-raised)',
                             border:       '1px solid var(--border)',
