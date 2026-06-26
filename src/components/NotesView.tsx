@@ -262,12 +262,10 @@ function NoteListRow({
     let displayTitle: string
     let titleColor: string
     let titleFontStyle: 'normal' | 'italic' = 'normal'
-    let bodyPreview: string | null = null
 
     if (note.title) {
         displayTitle = note.title
         titleColor   = 'var(--text-primary)'
-        bodyPreview  = note.body ? note.body.replace(/[#*`_]/g, '').slice(0, 180) : null
     } else {
         const bodyFirstLine = note.body
             ?.split('\n')
@@ -278,7 +276,6 @@ function NoteListRow({
             displayTitle  = bodyFirstLine
             titleColor    = 'var(--text-secondary)'
             titleFontStyle = 'italic'
-            // skip preview — the title already comes from the body
         } else {
             displayTitle  = 'Untitled'
             titleColor    = 'var(--text-muted)'
@@ -351,7 +348,7 @@ function NoteListRow({
                 >
                     {displayTitle}
                 </div>
-                {bodyPreview && (
+                {note.body && (
                     <div style={{
                         fontSize:  '12px',
                         color:     'var(--text-muted)',
@@ -359,7 +356,7 @@ function NoteListRow({
                     }}
                          className="truncate"
                     >
-                        {bodyPreview}
+                        {note.body.replace(/[#*`_]/g, '').slice(0, 120)}
                     </div>
                 )}
                 {tags.length > 0 && (
