@@ -486,7 +486,7 @@ export function EntryDetail() {
                             placeholder="Title"
                             style={{ ...inputStyle, fontSize: '15px', fontFamily: 'var(--font-display)' }}
                         />
-                    ) : (
+                    ) : selectedEntry?.title ? (
                         <h2 style={{
                             fontFamily: 'var(--font-display)',
                             fontSize:   '20px',
@@ -495,9 +495,9 @@ export function EntryDetail() {
                             lineHeight: 1.3,
                             margin:     0,
                         }}>
-                            {selectedEntry?.title || 'Untitled'}
+                            {selectedEntry.title}
                         </h2>
-                    )}
+                    ) : null}
                 </div>
 
                 <div style={{ display: 'flex', gap: '5px', flexShrink: 0 }}>

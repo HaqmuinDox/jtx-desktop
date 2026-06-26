@@ -119,23 +119,25 @@ function NoteCard({
             }}
         >
             {/* Title */}
-            <div style={{
-                fontSize:   '14px',
-                fontWeight: 500,
-                color:      'var(--text-primary)',
-                lineHeight: 1.3,
-            }}
-                 className="truncate"
-            >
-                {note.title || 'Untitled'}
-            </div>
+            {note.title && (
+                <div style={{
+                    fontSize:   '14px',
+                    fontWeight: 500,
+                    color:      'var(--text-primary)',
+                    lineHeight: 1.3,
+                }}
+                     className="truncate"
+                >
+                    {note.title}
+                </div>
+            )}
 
             {/* Body preview */}
             {preview && (
                 <div style={{
-                    fontSize:   '12px',
-                    color:      'var(--text-muted)',
-                    lineHeight: 1.5,
+                    fontSize:   '13px',
+                    color:      'var(--text-secondary)',
+                    lineHeight: 1.6,
                     flex:       1,
                     overflow:   'hidden',
                     display:    '-webkit-box',
