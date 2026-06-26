@@ -186,6 +186,12 @@ export function registerIpcHandlers() {
     })
 
     // Returns entries that are marked dirty=1 (for diagnostics)
+    ipcMain.handle('sync:setInterval', (_event, minutes: number) => {
+        const ms = Math.max(1, minutes) * 60 * 1000
+        startSyncInterval(ms)
+        return { ok: true }
+    })
+
     ipcMain.handle('sync:getDirtyEntries', () => {
         const db = getDb()
         return db.prepare(

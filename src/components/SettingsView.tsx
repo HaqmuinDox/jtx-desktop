@@ -9,13 +9,20 @@ export function SettingsView() {
     const [username,  setUsername]  = useState('')
     const [password,  setPassword]  = useState('')
 
+    const [syncInterval, setSyncInterval] = useState(() =>
+        parseInt(localStorage.getItem('jtx_sync_interval') ?? '5', 10)
+    )
+
     const [locName, setLocName] = useState('')
     const [locLat,  setLocLat]  = useState('')
     const [locLon,  setLocLon]  = useState('')
     const [locSaved, setLocSaved] = useState(false)
 
-    // Load saved credentials on mount
+    // Load saved credentials on mount and apply persisted sync interval
     useEffect(() => {
+        const savedMinutes = parseInt(localStorage.getItem('jtx_sync_interval') ?? '5', 10)
+        window.api.sync.setInterval(savedMinutes)
+
         window.api.credentials.load().then(creds => {
             if (creds) {
                 setServerUrl(creds.serverUrl)
@@ -193,6 +200,36 @@ export function SettingsView() {
                 <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '18px', fontWeight: 400, color: 'var(--text-primary)', marginBottom: '24px' }}>
                     Nextcloud Sync
                 </h2>
+            </div>
+
+            {/* Sync interval */}
+            <div style={{ maxWidth: '480px', marginBottom: '28px' }}>
+                <div style={{ fontSize: '12px', color: 'var(--text-secondary)', letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: '10px' }}>
+                    Sync interval
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    {[5, 10, 15, 30, 60].map(m => (
+                        <button
+                            key={m}
+                            onClick={() => {
+                                setSyncInterval(m)
+                                localStorage.setItem('jtx_sync_interval', String(m))
+                                window.api.sync.setInterval(m)
+                            }}
+                            style={{
+                                padding: '8px 14px',
+                                background: syncInterval === m ? 'var(--accent-glow)' : 'var(--bg-raised)',
+                                border: `1px solid ${syncInterval === m ? 'var(--accent-dim)' : 'var(--border-strong)'}`,
+                                borderRadius: 'var(--radius-md)',
+                                color: syncInterval === m ? 'var(--accent)' : 'var(--text-secondary)',
+                                fontFamily: 'var(--font-ui)', fontSize: '13px', cursor: 'pointer',
+                                transition: 'background 0.15s, border-color 0.15s, color 0.15s',
+                            }}
+                        >
+                            {m < 60 ? `${m}m` : '1h'}
+                        </button>
+                    ))}
+                </div>
             </div>
 
             {/* Form */}
