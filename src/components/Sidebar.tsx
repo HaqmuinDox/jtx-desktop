@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { BookOpen, FileText, CheckSquare, Settings, Menu, Search } from 'lucide-react'
 import { useAppStore, type Section } from '../store/app.ts'
 
 interface Collection {
@@ -7,10 +8,12 @@ interface Collection {
     color:        string | null
 }
 
-const NAV_ITEMS: { section: Section; label: string; icon: string }[] = [
-    { section: 'journals', label: 'Journals', icon: '📖' },
-    { section: 'notes',    label: 'Notes',    icon: '📝' },
-    { section: 'todos',    label: 'Tasks',    icon: '✓'  },
+type NavItem = { section: Section; label: string; Icon: React.ElementType }
+
+const NAV_ITEMS: NavItem[] = [
+    { section: 'journals', label: 'Journals', Icon: BookOpen      },
+    { section: 'notes',    label: 'Notes',    Icon: FileText      },
+    { section: 'todos',    label: 'Tasks',    Icon: CheckSquare   },
 ]
 
 export function Sidebar() {
@@ -52,8 +55,8 @@ export function Sidebar() {
 
     return (
         <aside style={{
-            width:         sidebarCollapsed ? '48px' : 'var(--sidebar-width)',
-            minWidth:      sidebarCollapsed ? '48px' : 'var(--sidebar-width)',
+            width:         sidebarCollapsed ? '50px' : 'var(--sidebar-width)',
+            minWidth:      sidebarCollapsed ? '50px' : 'var(--sidebar-width)',
             background:    'var(--bg-surface)',
             display:       'flex',
             flexDirection: 'column',
@@ -89,7 +92,7 @@ export function Sidebar() {
                         flexShrink: 0,
                     }}
                 >
-                    ☰
+                    <Menu size={18} />
                 </button>
                 <div style={{
                     opacity:       sidebarCollapsed ? 0 : 1,
@@ -119,13 +122,38 @@ export function Sidebar() {
                 </div>
             </div>
 
-            {/* Search input */}
-            <div style={{
-                opacity:       sidebarCollapsed ? 0 : 1,
-                transition:    contentTransition,
-                pointerEvents: sidebarCollapsed ? 'none' : 'auto',
-            }}>
-                <div style={{ padding: '0 12px 12px' }}>
+            {/* Search */}
+            <div style={{ padding: '0 8px 12px', position: 'relative' }}>
+                {/* Collapsed: standalone icon, mirrors nav-item alignment */}
+                <div style={{
+                    position:      'absolute',
+                    inset:         0,
+                    display:       'flex',
+                    alignItems:    'center',
+                    paddingLeft:   '16px',
+                    opacity:       sidebarCollapsed ? 0.45 : 0,
+                    transition:    contentTransition,
+                    pointerEvents: 'none',
+                }}>
+                    <Search size={16} style={{ color: 'var(--text-muted)' }} />
+                </div>
+
+                {/* Expanded: input with icon inside */}
+                <div style={{
+                    position:      'relative',
+                    opacity:       sidebarCollapsed ? 0 : 1,
+                    transition:    contentTransition,
+                    pointerEvents: sidebarCollapsed ? 'none' : 'auto',
+                }}>
+                    <Search size={13} aria-hidden="true" style={{
+                        position:      'absolute',
+                        left:          '9px',
+                        top:           '50%',
+                        transform:     'translateY(-50%)',
+                        color:         'var(--text-muted)',
+                        opacity:       0.5,
+                        pointerEvents: 'none',
+                    }} />
                     <input
                         type="search"
                         placeholder="Search…"
@@ -140,7 +168,7 @@ export function Sidebar() {
                             color:        'var(--text-primary)',
                             fontFamily:   'var(--font-ui)',
                             fontSize:     '12px',
-                            padding:      '7px 10px',
+                            padding:      '7px 10px 7px 28px',
                             outline:      'none',
                             boxSizing:    'border-box',
                         }}
@@ -150,7 +178,7 @@ export function Sidebar() {
 
             {/* Navigation */}
             <nav style={{ flex: 1, padding: '0 8px' }}>
-                {NAV_ITEMS.map(({ section, label, icon }) => {
+                {NAV_ITEMS.map(({ section, label, Icon }) => {
                     const isActive = activeSection === section
                     return (
                         <button
@@ -182,9 +210,7 @@ export function Sidebar() {
                                     : '2px solid transparent',
                             }}
                         >
-                            <span aria-hidden="true" style={{ fontSize: '14px', opacity: isActive ? 1 : 0.6 }}>
-                                {icon}
-                            </span>
+                            <Icon aria-hidden="true" size={16} style={{ flexShrink: 0, opacity: isActive ? 1 : 0.6 }} />
                             <span style={{
                                 opacity:    sidebarCollapsed ? 0 : 1,
                                 maxWidth:   sidebarCollapsed ? '0px' : '160px',
@@ -283,7 +309,7 @@ export function Sidebar() {
                             : '2px solid transparent',
                     }}
                 >
-                    <span aria-hidden="true" style={{ fontSize: '14px', opacity: 0.6 }}>⚙</span>
+                    <Settings aria-hidden="true" size={16} style={{ flexShrink: 0, opacity: activeSection === 'settings' ? 1 : 0.6 }} />
                     <span style={{
                         opacity:    sidebarCollapsed ? 0 : 1,
                         maxWidth:   sidebarCollapsed ? '0px' : '160px',

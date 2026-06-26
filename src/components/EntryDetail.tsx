@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import ReactMarkdown from 'react-markdown'
+import { MapPin, Link, User, Map, Timer, Bell } from 'lucide-react'
 import {DeviceLocation, useAppStore} from '../store/app'
 import { EntryEditor } from './EntryEditor'
 import type { Entry, AlarmObject } from '../../shared/types'
@@ -704,13 +705,13 @@ function ViewMode({ entry, subtasks, onAddSubtask, onSelectSubtask, onToggleSubt
                     <SectionLabel>Details</SectionLabel>
                     {entry.location && (
                         <div style={detailRowStyle}>
-                            <span style={detailIconStyle}>📍</span>
+                            <MapPin size={13} style={detailIconStyle} />
                             <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{entry.location}</span>
                         </div>
                     )}
                     {entry.url && (
                         <div style={detailRowStyle}>
-                            <span style={detailIconStyle}>🔗</span>
+                            <Link size={13} style={detailIconStyle} />
                             <a href={entry.url} target="_blank" rel="noreferrer"
                                 style={{ fontSize: '12px', color: 'var(--accent)', wordBreak: 'break-all', textDecoration: 'none' }}>
                                 {entry.url}
@@ -719,13 +720,13 @@ function ViewMode({ entry, subtasks, onAddSubtask, onSelectSubtask, onToggleSubt
                     )}
                     {entry.contact && (
                         <div style={detailRowStyle}>
-                            <span style={detailIconStyle}>👤</span>
+                            <User size={13} style={detailIconStyle} />
                             <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{entry.contact}</span>
                         </div>
                     )}
                     {entry.geo && (
                         <div style={detailRowStyle}>
-                            <span style={detailIconStyle}>🗺</span>
+                            <Map size={13} style={detailIconStyle} />
                             <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>
                                 {entry.geo.replace(';', ', ')}
                             </span>
@@ -733,14 +734,14 @@ function ViewMode({ entry, subtasks, onAddSubtask, onSelectSubtask, onToggleSubt
                     )}
                     {entry.duration && (
                         <div style={detailRowStyle}>
-                            <span style={detailIconStyle}>⏱</span>
+                            <Timer size={13} style={detailIconStyle} />
                             <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>{entry.duration}</span>
                         </div>
                     )}
                     {entry.color && (
                         <div style={detailRowStyle}>
-                            <span style={{ ...detailIconStyle, display: 'flex', alignItems: 'center' }}>
-                                <span style={{ width: '12px', height: '12px', borderRadius: '50%', background: entry.color, border: '1px solid var(--border)', display: 'inline-block' }} />
+                            <span style={{ flexShrink: 0, width: '18px', height: '13px', marginTop: '1px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <span style={{ width: '10px', height: '10px', minWidth: '10px', borderRadius: '50%', background: entry.color, border: '1px solid var(--border)' }} />
                             </span>
                             <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{entry.color}</span>
                         </div>
@@ -796,7 +797,7 @@ function ViewMode({ entry, subtasks, onAddSubtask, onSelectSubtask, onToggleSubt
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                         {alarms.map((a, i) => (
                             <div key={i} style={{ ...monoChipStyle, display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                <span>🔔</span>
+                                <Bell size={12} style={{ flexShrink: 0, color: 'var(--text-muted)' }} />
                                 <span>{formatTrigger(a.trigger)}</span>
                                 {a.description && <span style={{ color: 'var(--text-muted)' }}>· {a.description}</span>}
                             </div>
@@ -1304,8 +1305,8 @@ const detailRowStyle: React.CSSProperties = {
 }
 
 const detailIconStyle: React.CSSProperties = {
-    fontSize:  '13px',
     flexShrink: 0,
-    width:     '18px',
-    textAlign: 'center',
+    width:      '18px',
+    color:      'var(--text-muted)',
+    marginTop:  '1px',
 }
