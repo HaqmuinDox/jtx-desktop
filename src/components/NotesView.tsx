@@ -258,9 +258,33 @@ function NoteListRow({
 }) {
     const tags: string[] = (() => { try { return note.categories ? JSON.parse(note.categories) : [] } catch { return [] } })()
 
-    const preview = note.body
-        ? note.body.replace(/[#*`_]/g, '').slice(0, 180)
-        : null
+    // 3-tier title fallback: real title → first body line → 'Untitled'
+    let displayTitle: string
+    let titleColor: string
+    let titleFontStyle: 'normal' | 'italic' = 'normal'
+    let bodyPreview: string | null = null
+
+    if (note.title) {
+        displayTitle = note.title
+        titleColor   = 'var(--text-primary)'
+        bodyPreview  = note.body ? note.body.replace(/[#*`_]/g, '').slice(0, 180) : null
+    } else {
+        const bodyFirstLine = note.body
+            ?.split('\n')
+            .find(l => l.trim())
+            ?.replace(/^[#*>\-\s`]+/, '')
+            .trim()
+        if (bodyFirstLine) {
+            displayTitle  = bodyFirstLine
+            titleColor    = 'var(--text-secondary)'
+            titleFontStyle = 'italic'
+            // skip preview — the title already comes from the body
+        } else {
+            displayTitle  = 'Untitled'
+            titleColor    = 'var(--text-muted)'
+            titleFontStyle = 'italic'
+        }
+    }
 
     const date   = new Date(note.updated_at)
     const dayNum = date.toLocaleDateString('en-US', { day: '2-digit' })
@@ -319,14 +343,15 @@ function NoteListRow({
                 <div style={{
                     fontSize:     '14px',
                     fontWeight:   500,
-                    color:        'var(--text-primary)',
+                    color:        titleColor,
+                    fontStyle:    titleFontStyle,
                     marginBottom: '3px',
                 }}
                      className="truncate"
                 >
-                    {note.title || 'Untitled'}
+                    {displayTitle}
                 </div>
-                {preview && (
+                {bodyPreview && (
                     <div style={{
                         fontSize:  '12px',
                         color:     'var(--text-muted)',
@@ -334,7 +359,7 @@ function NoteListRow({
                     }}
                          className="truncate"
                     >
-                        {preview}
+                        {bodyPreview}
                     </div>
                 )}
                 {tags.length > 0 && (
