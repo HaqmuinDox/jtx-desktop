@@ -29,6 +29,23 @@ function saveEntryDefaults(next: EntryDefaults): void {
     } catch { /* ignore */ }
 }
 
+// ── Progress computation ──────────────────────────────────────────────────────
+
+const STATUS_PROGRESS: Record<string, number> = {
+    'NEEDS-ACTION': 0,
+    'IN-PROCESS':   50,
+    'COMPLETED':    100,
+    'CANCELLED':    100,
+}
+
+function computeProgress(status: string | null, subtasks: Entry[]): number {
+    if (subtasks.length > 0) {
+        const sum = subtasks.reduce((acc, s) => acc + (STATUS_PROGRESS[s.status ?? ''] ?? 0), 0)
+        return Math.round(sum / subtasks.length)
+    }
+    return STATUS_PROGRESS[status ?? ''] ?? 0
+}
+
 // ── Edit state ────────────────────────────────────────────────────────────────
 
 interface EditState {
@@ -139,7 +156,7 @@ export function EntryDetail() {
     const {
         selectedEntry, setSelectedEntry,
         entries, setEntries,
-        creatingType, setCreatingType, addEntry,
+        creatingType, setCreatingType,
         creatingParentUid, setCreatingParentUid,
         creatingParentCollection, setCreatingParentCollection,
         deviceLocation,
@@ -209,9 +226,42 @@ export function EntryDetail() {
     const handleDelete = async () => {
         if (!selectedEntry) return
         if (!window.confirm(`Delete "${selectedEntry.title || 'Untitled'}"? This will be removed from Nextcloud on the next sync.`)) return
+        const parentUid = selectedEntry.parent_uid
+        const entryType = selectedEntry.type
         await window.api.entries.delete(selectedEntry.id)
-        setEntries(entries.filter(e => e.id !== selectedEntry.id))
+        if (parentUid && entryType === 'todo') {
+            const remaining   = entries.filter(e => e.parent_uid === parentUid && e.id !== selectedEntry.id && !e.deleted)
+            const parentEntry = entries.find(e => e.id === parentUid)
+            await window.api.entries.update(parentUid, {
+                progress: computeProgress(parentEntry?.status ?? null, remaining),
+            })
+            setEntries(await window.api.entries.getAll())
+        } else {
+            setEntries(entries.filter(e => e.id !== selectedEntry.id))
+        }
         setSelectedEntry(null)
+    }
+
+    const handleToggleSubtask = async (sub: Entry) => {
+        const newStatus = (sub.status === 'COMPLETED' || sub.status === 'CANCELLED')
+            ? 'NEEDS-ACTION'
+            : 'COMPLETED'
+        await window.api.entries.update(sub.id, {
+            status:   newStatus,
+            progress: STATUS_PROGRESS[newStatus],
+        })
+        if (sub.parent_uid) {
+            const allLatest   = await window.api.entries.getAll()
+            const siblings    = allLatest.filter(e => e.parent_uid === sub.parent_uid && !e.deleted)
+            const parentEntry = allLatest.find(e => e.id === sub.parent_uid)
+            await window.api.entries.update(sub.parent_uid, {
+                progress: computeProgress(parentEntry?.status ?? null, siblings),
+            })
+        }
+        const allFinal = await window.api.entries.getAll()
+        setEntries(allFinal)
+        const refreshed = allFinal.find(e => e.id === selectedEntry?.id)
+        if (refreshed) setSelectedEntry(refreshed)
     }
 
     const handleAddSubtask = () => {
@@ -276,7 +326,20 @@ export function EntryDetail() {
     const handleSave = async () => {
         if (!editState || !selectedEntry) return
         setSaving(true)
-        await window.api.entries.update(selectedEntry.id, assembleFields(editState))
+        const fields: Record<string, unknown> = { ...assembleFields(editState) }
+        if (selectedEntry.type === 'todo') {
+            const mySubtasks = entries.filter(e => e.parent_uid === selectedEntry.id && !e.deleted)
+            fields.progress = computeProgress(editState.status || null, mySubtasks)
+        }
+        await window.api.entries.update(selectedEntry.id, fields)
+        if (selectedEntry.parent_uid && selectedEntry.type === 'todo') {
+            const allLatest   = await window.api.entries.getAll()
+            const siblings    = allLatest.filter(e => e.parent_uid === selectedEntry.parent_uid && !e.deleted)
+            const parentEntry = allLatest.find(e => e.id === selectedEntry.parent_uid)
+            await window.api.entries.update(selectedEntry.parent_uid, {
+                progress: computeProgress(parentEntry?.status ?? null, siblings),
+            })
+        }
         const updated  = await window.api.entries.getAll()
         setEntries(updated)
         const refreshed = updated.find(e => e.id === selectedEntry.id)
@@ -301,18 +364,29 @@ export function EntryDetail() {
                 })
             }
 
+            const subProgress = creatingType === 'todo'
+                ? computeProgress(editState.status || null, [])
+                : undefined
             const { id } = await window.api.entries.create({
                 type:       creatingType,
                 collection: selectedCollection,
                 parent_uid: creatingParentUid ?? undefined,
                 ...assembleFields(editState),
+                ...(subProgress !== undefined && { progress: subProgress }),
             })
-            const fresh = await window.api.entries.getById(id) as Entry
-            addEntry(fresh)
-            // Touch the parent so it gets re-pushed with updated CHILD refs.
+            // Update parent: re-push with new CHILD refs and updated progress.
+            // entries:update sets dirty=1 + increments sequence, so no separate touch needed.
             if (creatingParentUid) {
-                await window.api.entries.touch(creatingParentUid)
+                const allLatest   = await window.api.entries.getAll()
+                const siblings    = allLatest.filter(e => e.parent_uid === creatingParentUid && !e.deleted)
+                const parentEntry = allLatest.find(e => e.id === creatingParentUid)
+                await window.api.entries.update(creatingParentUid, {
+                    progress: computeProgress(parentEntry?.status ?? null, siblings),
+                })
             }
+            const allFinal = await window.api.entries.getAll()
+            setEntries(allFinal)
+            const fresh = allFinal.find(e => e.id === id) ?? null
             setCreatingParentUid(null)
             setCreatingParentCollection(null)
             setSelectedEntry(fresh)
@@ -462,6 +536,7 @@ export function EntryDetail() {
                         subtasks={subtasks}
                         onAddSubtask={handleAddSubtask}
                         onSelectSubtask={setSelectedEntry}
+                        onToggleSubtask={handleToggleSubtask}
                     />
                 ) : null}
             </div>
@@ -471,11 +546,12 @@ export function EntryDetail() {
 
 // ── View mode ────────────────────────────────────────────────────────────────
 
-function ViewMode({ entry, subtasks, onAddSubtask, onSelectSubtask }: {
-    entry:           Entry
-    subtasks:        Entry[]
-    onAddSubtask:    () => void
-    onSelectSubtask: (sub: Entry) => void
+function ViewMode({ entry, subtasks, onAddSubtask, onSelectSubtask, onToggleSubtask }: {
+    entry:             Entry
+    subtasks:          Entry[]
+    onAddSubtask:      () => void
+    onSelectSubtask:   (sub: Entry) => void
+    onToggleSubtask:   (sub: Entry) => void
 }) {
     const tags: string[] = (() => {
         try { return entry.categories ? JSON.parse(entry.categories) : [] }
@@ -525,7 +601,7 @@ function ViewMode({ entry, subtasks, onAddSubtask, onSelectSubtask }: {
             )}
 
             {/* Priority + Progress */}
-            {entry.type === 'todo' && (entry.priority || entry.progress != null) && (
+            {entry.type === 'todo' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {entry.priority != null && entry.priority > 0 && (
                         <div style={dateRowStyle}>
@@ -535,17 +611,20 @@ function ViewMode({ entry, subtasks, onAddSubtask, onSelectSubtask }: {
                             </span>
                         </div>
                     )}
-                    {entry.progress != null && (
-                        <div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
-                                <span style={dateRowLabelStyle}>Progress</span>
-                                <span style={{ fontSize: '11px', color: 'var(--accent)', fontWeight: 500 }}>{entry.progress}%</span>
+                    {(() => {
+                        const pct = computeProgress(entry.status, subtasks)
+                        return (
+                            <div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+                                    <span style={dateRowLabelStyle}>Progress</span>
+                                    <span style={{ fontSize: '11px', color: 'var(--accent)', fontWeight: 500 }}>{pct}%</span>
+                                </div>
+                                <div style={{ height: '5px', background: 'var(--border)', borderRadius: '3px', overflow: 'hidden' }}>
+                                    <div style={{ height: '100%', width: `${pct}%`, background: 'var(--accent)', borderRadius: '3px', transition: 'width 0.3s ease' }} />
+                                </div>
                             </div>
-                            <div style={{ height: '5px', background: 'var(--border)', borderRadius: '3px', overflow: 'hidden' }}>
-                                <div style={{ height: '100%', width: `${entry.progress}%`, background: 'var(--accent)', borderRadius: '3px', transition: 'width 0.3s ease' }} />
-                            </div>
-                        </div>
-                    )}
+                        )
+                    })()}
                 </div>
             )}
 
@@ -646,6 +725,7 @@ function ViewMode({ entry, subtasks, onAddSubtask, onSelectSubtask }: {
                                 key={sub.id}
                                 subtask={sub}
                                 onClick={() => onSelectSubtask(sub)}
+                                onToggle={() => onToggleSubtask(sub)}
                             />
                         ))}
                     </div>
@@ -793,21 +873,13 @@ function EditForm({
                 )}
             </div>
 
-            {/* Priority + Progress (to-do only) */}
+            {/* Priority (to-do only) */}
             {isTodo && (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', alignItems: 'end' }}>
-                    <FormField label="Priority">
-                        <select value={state.priority} onChange={set('priority')} style={selectStyle}>
-                            {priorityOptions.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                        </select>
-                    </FormField>
-                    <FormField label={`Progress: ${state.progress}%`}>
-                        <input type="range" min="0" max="100" value={state.progress}
-                            onChange={set('progress')}
-                            style={{ width: '100%', accentColor: 'var(--accent)', marginTop: '6px' }}
-                        />
-                    </FormField>
-                </div>
+                <FormField label="Priority">
+                    <select value={state.priority} onChange={set('priority')} style={selectStyle}>
+                        {priorityOptions.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                    </select>
+                </FormField>
             )}
 
             {/* Body */}
@@ -991,7 +1063,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
     )
 }
 
-function SubtaskRow({ subtask, onClick }: { subtask: Entry; onClick: () => void }) {
+function SubtaskRow({ subtask, onClick, onToggle }: { subtask: Entry; onClick: () => void; onToggle: () => void }) {
     const isDone = subtask.status === 'COMPLETED' || subtask.status === 'CANCELLED'
     return (
         <div
@@ -1000,13 +1072,16 @@ function SubtaskRow({ subtask, onClick }: { subtask: Entry; onClick: () => void 
             onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = 'var(--bg-hover)' }}
             onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = 'var(--bg-raised)' }}
         >
-            <div style={{
-                width: '13px', height: '13px', minWidth: '13px', borderRadius: '50%',
-                border: `1.5px solid ${isDone ? 'var(--text-muted)' : 'var(--border-strong)'}`,
-                background: isDone ? 'var(--text-muted)' : 'transparent',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '7px', color: 'var(--bg-base)',
-            }}>{isDone && '✓'}</div>
+            <div
+                onClick={e => { e.stopPropagation(); onToggle() }}
+                style={{
+                    width: '13px', height: '13px', minWidth: '13px', borderRadius: '50%',
+                    border: `1.5px solid ${isDone ? 'var(--text-muted)' : 'var(--border-strong)'}`,
+                    background: isDone ? 'var(--text-muted)' : 'transparent',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '7px', color: 'var(--bg-base)', cursor: 'pointer',
+                }}
+            >{isDone && '✓'}</div>
             <span className="truncate" style={{
                 fontSize: '12px', flex: 1,
                 color: isDone ? 'var(--text-muted)' : 'var(--text-secondary)',

@@ -1,6 +1,21 @@
 import { useAppStore } from '../store/app.ts'
 import type { Entry } from '../../shared/types'
 
+const STATUS_PROGRESS: Record<string, number> = {
+    'NEEDS-ACTION': 0,
+    'IN-PROCESS':   50,
+    'COMPLETED':    100,
+    'CANCELLED':    100,
+}
+
+function computeProgress(status: string | null, subtasks: Entry[]): number {
+    if (subtasks.length > 0) {
+        const sum = subtasks.reduce((acc, s) => acc + (STATUS_PROGRESS[s.status ?? ''] ?? 0), 0)
+        return Math.round(sum / subtasks.length)
+    }
+    return STATUS_PROGRESS[status ?? ''] ?? 0
+}
+
 const STATUS_GROUPS = [
     { status: 'NEEDS-ACTION', label: 'Open',        color: '#a09880' },
     { status: 'IN-PROCESS',   label: 'In Progress', color: '#c4a35a' },
@@ -234,22 +249,25 @@ function TodoRow({
                 </div>
 
                 {/* Progress bar */}
-                {entry.progress != null && entry.progress > 0 && (
-                    <div style={{
-                        height:       '2px',
-                        background:   'var(--border)',
-                        borderRadius: '1px',
-                        marginBottom: '6px',
-                        overflow:     'hidden',
-                    }}>
+                {(() => {
+                    const pct = computeProgress(entry.status, subtasks)
+                    return pct > 0 ? (
                         <div style={{
-                            height:     '100%',
-                            width:      `${entry.progress}%`,
-                            background: 'var(--accent)',
+                            height:       '2px',
+                            background:   'var(--border)',
                             borderRadius: '1px',
-                        }} />
-                    </div>
-                )}
+                            marginBottom: '6px',
+                            overflow:     'hidden',
+                        }}>
+                            <div style={{
+                                height:     '100%',
+                                width:      `${pct}%`,
+                                background: 'var(--accent)',
+                                borderRadius: '1px',
+                            }} />
+                        </div>
+                    ) : null
+                })()}
 
                 {/* Subtasks count + tags */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
