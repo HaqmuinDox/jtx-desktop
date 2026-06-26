@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import ReactMarkdown from 'react-markdown'
 import {DeviceLocation, useAppStore} from '../store/app'
 import { EntryEditor } from './EntryEditor'
@@ -837,6 +837,18 @@ function EditForm({
     const isTodo    = type === 'todo'
     const isJournal = type === 'journal'
 
+    const { entries } = useAppStore()
+    const allTags = useMemo(() => {
+        const tagSet = new Set<string>()
+        entries.forEach(e => {
+            try {
+                const tags: string[] = JSON.parse(e.categories ?? '[]')
+                tags.forEach(tag => tagSet.add(tag))
+            } catch { /* empty */ }
+        })
+        return [...tagSet].sort()
+    }, [entries])
+
     const statusOptions = isTodo
         ? [['', 'No status'], ['NEEDS-ACTION', 'Needs Action'], ['IN-PROCESS', 'In Process'], ['COMPLETED', 'Completed'], ['CANCELLED', 'Cancelled']]
         : [['', 'No status'], ['DRAFT', 'Draft'], ['FINAL', 'Final'], ['CANCELLED', 'Cancelled']]
@@ -944,6 +956,55 @@ function EditForm({
             <FormField label="Tags (comma-separated)">
                 <input value={state.categories} onChange={set('categories')}
                     placeholder="work, personal, urgent" style={inputStyle} />
+                {(() => {
+                    const active = new Set(
+                        state.categories.split(',').map(t => t.trim()).filter(Boolean)
+                    )
+                    const suggestions = allTags.filter(t => !active.has(t))
+                    if (suggestions.length === 0) return null
+                    return (
+                        <div style={{
+                            display:    'flex',
+                            gap:        '4px',
+                            overflowX:  'auto',
+                            paddingBottom: '2px',
+                            marginTop:  '6px',
+                        }}>
+                            {suggestions.map(tag => (
+                                <button
+                                    key={tag}
+                                    type="button"
+                                    onClick={() => {
+                                        const existing = state.categories.trim()
+                                        onChange({ ...state, categories: existing ? `${existing}, ${tag}` : tag })
+                                    }}
+                                    style={{
+                                        flexShrink:   0,
+                                        background:   'var(--bg-raised)',
+                                        border:       '1px solid var(--border)',
+                                        borderRadius: 'var(--radius-sm)',
+                                        color:        'var(--text-muted)',
+                                        fontSize:     '11px',
+                                        fontFamily:   'var(--font-ui)',
+                                        padding:      '2px 7px',
+                                        cursor:       'pointer',
+                                        whiteSpace:   'nowrap',
+                                    }}
+                                    onMouseEnter={e => {
+                                        (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--accent-dim)'
+                                        ;(e.currentTarget as HTMLButtonElement).style.color = 'var(--accent)'
+                                    }}
+                                    onMouseLeave={e => {
+                                        (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border)'
+                                        ;(e.currentTarget as HTMLButtonElement).style.color = 'var(--text-muted)'
+                                    }}
+                                >
+                                    + {tag}
+                                </button>
+                            ))}
+                        </div>
+                    )
+                })()}
             </FormField>
 
             {/* Location / URL */}
