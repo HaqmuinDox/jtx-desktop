@@ -55,10 +55,23 @@ function applyTheme(t: 'dark' | 'light' | 'system') {
     document.documentElement.setAttribute('data-theme', resolved)
 }
 function applyFontSize(s: 'sm' | 'md' | 'lg' | 'xl') {
-    // zoom scales the entire rendered UI uniformly — the only reliable approach
-    // when all component font sizes are hardcoded in px (not rem/em).
-    const zooms = { sm: '0.875', md: '1', lg: '1.125', xl: '1.25' }
-    document.documentElement.style.zoom = zooms[s]
+    const scales: Record<string, number> = { sm: 0.875, md: 1, lg: 1.125, xl: 1.25 }
+    const z = scales[s]
+    const root = document.getElementById('root')
+    if (!root) return
+    if (z === 1) {
+        root.style.transform       = ''
+        root.style.transformOrigin = ''
+        root.style.width           = ''
+        root.style.height          = ''
+    } else {
+        // Scale the root element, then shrink its own box so it still fills
+        // the viewport exactly — prevents content from going off-screen.
+        root.style.transformOrigin = 'top left'
+        root.style.transform       = `scale(${z})`
+        root.style.width           = `${100 / z}vw`
+        root.style.height          = `${100 / z}vh`
+    }
 }
 applyTheme(savedTheme)
 applyFontSize(savedFontSize)
