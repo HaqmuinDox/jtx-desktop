@@ -278,7 +278,7 @@ function JournalRow({
 function NewButton({ onClick }: { onClick: () => void }) {
     return (
         <button onClick={onClick} style={{
-            background:   'rgba(196,163,90,0.12)',
+            background:   'var(--accent-glow)',
             border:       '1px solid var(--accent-dim)',
             borderRadius: 'var(--radius-sm)',
             color:        'var(--accent)',
@@ -319,7 +319,7 @@ function Empty({ icon, title, subtitle, onNew }: {
             {onNew && (
                 <button onClick={onNew} style={{
                     marginTop:    '8px',
-                    background:   'rgba(196,163,90,0.12)',
+                    background:   'var(--accent-glow)',
                     border:       '1px solid var(--accent-dim)',
                     borderRadius: 'var(--radius-md)',
                     color:        'var(--accent)',

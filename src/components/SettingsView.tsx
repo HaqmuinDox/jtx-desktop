@@ -4,7 +4,7 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
 export function SettingsView() {
-    const { setEntries, setLastSynced, setIsSyncing, setDeviceLocation, theme, setTheme, fontSize, setFontSize } = useAppStore()
+    const { setEntries, setLastSynced, setIsSyncing, setDeviceLocation, theme, setTheme, fontSize, setFontSize, accentColor, setAccentColor } = useAppStore()
     const [serverUrl, setServerUrl] = useState('')
     const [username,  setUsername]  = useState('')
     const [password,  setPassword]  = useState('')
@@ -107,7 +107,7 @@ export function SettingsView() {
                                 onClick={() => setTheme(t)}
                                 style={{
                                     flex: 1, padding: '10px 0',
-                                    background: theme === t ? 'rgba(196,163,90,0.15)' : 'var(--bg-raised)',
+                                    background: theme === t ? 'var(--accent-glow)' : 'var(--bg-raised)',
                                     border: `1px solid ${theme === t ? 'var(--accent-dim)' : 'var(--border-strong)'}`,
                                     borderRadius: 'var(--radius-md)',
                                     color: theme === t ? 'var(--accent)' : 'var(--text-secondary)',
@@ -118,6 +118,47 @@ export function SettingsView() {
                                 {t === 'dark' ? '🌙 Dark' : t === 'light' ? '☀️ Light' : '⚙ System'}
                             </button>
                         ))}
+                    </div>
+                </div>
+
+                {/* Accent color */}
+                <div style={{ marginBottom: '24px' }}>
+                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)', letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: '10px' }}>
+                        Accent color
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        {['#c4a35a', '#5a9ea0', '#c45a5a', '#7a9e7a', '#9a8ac4', '#a05a8a'].map(color => (
+                            <button
+                                key={color}
+                                onClick={() => setAccentColor(color)}
+                                title={color}
+                                style={{
+                                    width: '28px', height: '28px',
+                                    borderRadius: '50%',
+                                    background: color,
+                                    border: accentColor === color
+                                        ? '2px solid var(--text-primary)'
+                                        : '2px solid transparent',
+                                    cursor: 'pointer',
+                                    outline: 'none',
+                                    boxShadow: accentColor === color ? '0 0 0 1px var(--bg-base)' : 'none',
+                                    flexShrink: 0,
+                                }}
+                            />
+                        ))}
+                        <label title="Custom color" style={{ position: 'relative', width: '28px', height: '28px', flexShrink: 0, cursor: 'pointer' }}>
+                            <input
+                                type="color"
+                                value={accentColor}
+                                onChange={e => setAccentColor(e.target.value)}
+                                style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', width: '100%', height: '100%' }}
+                            />
+                            <div style={{
+                                width: '28px', height: '28px', borderRadius: '50%',
+                                background: 'conic-gradient(red, yellow, lime, cyan, blue, magenta, red)',
+                                border: '2px solid var(--border-strong)',
+                            }} />
+                        </label>
                     </div>
                 </div>
 
@@ -133,7 +174,7 @@ export function SettingsView() {
                                 onClick={() => setFontSize(s)}
                                 style={{
                                     flex: 1, padding: '10px 0',
-                                    background: fontSize === s ? 'rgba(196,163,90,0.15)' : 'var(--bg-raised)',
+                                    background: fontSize === s ? 'var(--accent-glow)' : 'var(--bg-raised)',
                                     border: `1px solid ${fontSize === s ? 'var(--accent-dim)' : 'var(--border-strong)'}`,
                                     borderRadius: 'var(--radius-md)',
                                     color: fontSize === s ? 'var(--accent)' : 'var(--text-secondary)',
@@ -343,7 +384,10 @@ function Field({
 // ── Map picker ────────────────────────────────────────────────────────────────
 
 // Custom pin icon — avoids Leaflet's default marker image path issues in Vite
-const PIN_HTML = '<div style="width:14px;height:14px;background:#c4a35a;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.5);"></div>'
+const pinHtml = () => {
+    const c = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#c4a35a'
+    return `<div style="width:14px;height:14px;background:${c};border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.5);"></div>`
+}
 
 function MapPicker({ lat, lon, onChange }: {
     lat:      string
@@ -363,7 +407,7 @@ function MapPicker({ lat, lon, onChange }: {
         const initLat = parseFloat(lat) || 53.5503
         const initLon = parseFloat(lon) || 10.0006
 
-        const pinIcon = L.divIcon({ className: '', html: PIN_HTML, iconSize: [14, 14], iconAnchor: [7, 7] })
+        const pinIcon = L.divIcon({ className: '', html: pinHtml(), iconSize: [14, 14], iconAnchor: [7, 7] })
 
         const map    = L.map(containerRef.current).setView([initLat, initLon], 12)
         const marker = L.marker([initLat, initLon], { icon: pinIcon }).addTo(map)
@@ -431,7 +475,7 @@ function ActionButton({
                     ? '1px solid var(--accent-dim)'
                     : '1px solid var(--border-strong)',
                 background:   variant === 'primary'
-                    ? 'rgba(196, 163, 90, 0.15)'
+                    ? 'var(--accent-glow)'
                     : 'var(--bg-raised)',
                 color:        variant === 'primary'
                     ? 'var(--accent)'

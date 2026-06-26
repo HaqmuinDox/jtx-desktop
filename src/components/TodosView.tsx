@@ -24,7 +24,7 @@ function computeProgress(status: string | null, subtasks: Entry[]): number {
 
 const STATUS_GROUPS = [
     { status: 'NEEDS-ACTION', label: 'Open',        color: '#a09880' },
-    { status: 'IN-PROCESS',   label: 'In Progress', color: '#c4a35a' },
+    { status: 'IN-PROCESS',   label: 'In Progress', color: 'var(--accent)' },
     { status: 'COMPLETED',    label: 'Completed',   color: '#4a7c4a' },
     { status: 'CANCELLED',    label: 'Cancelled',   color: '#605850' },
 ]
@@ -432,7 +432,7 @@ function TodoRow({
 function NewButton({ onClick }: { onClick: () => void }) {
     return (
         <button onClick={onClick} style={{
-            background:   'rgba(196,163,90,0.12)',
+            background:   'var(--accent-glow)',
             border:       '1px solid var(--accent-dim)',
             borderRadius: 'var(--radius-sm)',
             color:        'var(--accent)',
@@ -473,7 +473,7 @@ function Empty({ icon, title, subtitle, onNew }: {
             {onNew && (
                 <button onClick={onNew} style={{
                     marginTop:    '8px',
-                    background:   'rgba(196,163,90,0.12)',
+                    background:   'var(--accent-glow)',
                     border:       '1px solid var(--accent-dim)',
                     borderRadius: 'var(--radius-md)',
                     color:        'var(--accent)',

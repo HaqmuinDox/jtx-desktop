@@ -137,7 +137,7 @@ function initEditState(entry: Entry): EditState {
         body:           entry.body           ?? '',
         status:         entry.status         ?? '',
         classification: entry.classification ?? '',
-        color:          entry.color ?? '#c4a35a',
+        color:          entry.color ?? getComputedStyle(document.documentElement).getPropertyValue('--accent').trim(),
         start_date:     entry.start_date     ? toDatetimeLocal(entry.start_date)     : '',
         due_date:       entry.due_date       ? toDatetimeLocal(entry.due_date)       : '',
         completed_date: entry.completed_date ? toDatetimeLocal(entry.completed_date) : '',
@@ -170,7 +170,7 @@ function initBlankEditState(
         body:           '',
         status:         defaults?.status?.[type] ?? (type === 'todo' ? 'NEEDS-ACTION' : ''),
         classification: defaults?.classification ?? '',
-        color:          '#c4a35a',
+        color:          getComputedStyle(document.documentElement).getPropertyValue('--accent').trim(),
         start_date:     type === 'journal' ? localNow : '',
         due_date:       '',
         completed_date: '',
@@ -1079,7 +1079,7 @@ function HeaderButton({ label, onClick, accent = false, danger = false, disabled
 }) {
     return (
         <button onClick={onClick} disabled={disabled} aria-label={ariaLabel} style={{
-            background:   accent ? 'rgba(196,163,90,0.15)' : 'transparent',
+            background:   accent ? 'var(--accent-glow)' : 'transparent',
             border:       accent ? '1px solid var(--accent-dim)' : 'none',
             borderRadius: 'var(--radius-sm)',
             color:        accent ? 'var(--accent)' : danger ? '#e07070' : 'var(--text-muted)',
