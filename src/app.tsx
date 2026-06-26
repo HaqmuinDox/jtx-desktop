@@ -7,6 +7,7 @@ import { TodosView } from './components/TodosView'
 import { SettingsView } from './components/SettingsView'
 import { EntryDetail } from './components/EntryDetail'
 import { SyncBar } from './components/SyncBar'
+import { TitleBar } from './components/TitleBar'
 import type { Entry } from '../shared/types'
 import './index.css'
 
@@ -39,6 +40,13 @@ declare global {
                 load: () => Promise<{ serverUrl: string; username: string; password: string } | null>
             }
             onMenuAction: (cb: (action: string) => void) => void
+            window: {
+                minimize:          () => Promise<void>
+                maximize:          () => Promise<void>
+                close:             () => Promise<void>
+                isMaximized:       () => Promise<boolean>
+                onMaximizedChange: (cb: (maximized: boolean) => void) => void
+            }
         }
     }
 }
@@ -160,6 +168,7 @@ export default function App() {
             height:        '100%',
             background:    'var(--bg-base)',
         }}>
+            <TitleBar />
             {/* Main area: sidebar + content + detail */}
             <div style={{
                 display:  'flex',
