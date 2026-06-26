@@ -37,7 +37,7 @@ Items are grouped by priority. Agents assigned in parentheses where applicable.
 - [x] **Collections in sidebar** — Nextcloud collections listed in sidebar with color dot and display name; cached in localStorage for instant startup display
 - [x] **About / version info** — About section at the bottom of Settings; shows app name, version (from package.json), and author
 - [ ] **Autosave + inline editing** — Hard Edit/Save/Cancel cycle; professional apps autosave
-- [ ] **Custom window titlebar** — Electron default titlebar breaks visual unity on Windows
+- [x] **Custom window titlebar** — Frameless window (`frame: false`); custom 32px TitleBar component with drag region, "JTX Desktop" label, and Win11-style min/max/close buttons; maximize state synced via IPC events
 
 ---
 

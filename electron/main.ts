@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, dialog } from 'electron'
+import { app, BrowserWindow, Menu, dialog, ipcMain } from 'electron'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
@@ -34,10 +34,14 @@ let win: BrowserWindow | null
 function createWindow() {
   win = new BrowserWindow({
     icon: path.join(process.env.VITE_PUBLIC, 'icon.ico'),
+    frame: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.mjs'),
     },
   })
+
+  win.on('maximize',   () => win?.webContents.send('window:maximized', true))
+  win.on('unmaximize', () => win?.webContents.send('window:maximized', false))
 
   const menu = Menu.buildFromTemplate([
     {
@@ -144,6 +148,12 @@ app.on('activate', () => {
 app.whenReady().then(async () => {
     getDb()
     registerIpcHandlers()
+
+    ipcMain.handle('window:minimize',    () => win?.minimize())
+    ipcMain.handle('window:maximize',    () => win?.isMaximized() ? win?.unmaximize() : win?.maximize())
+    ipcMain.handle('window:close',       () => win?.close())
+    ipcMain.handle('window:isMaximized', () => win?.isMaximized() ?? false)
+
     createWindow()
 
     // Autoload saved credentials and start sync

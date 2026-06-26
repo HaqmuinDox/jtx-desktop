@@ -46,4 +46,13 @@ contextBridge.exposeInMainWorld('api', {
     onMenuAction: (cb: (action: string) => void) => {
         ipcRenderer.on('menu-action', (_event, action: string) => cb(action))
     },
+    window: {
+        minimize:          () => ipcRenderer.invoke('window:minimize'),
+        maximize:          () => ipcRenderer.invoke('window:maximize'),
+        close:             () => ipcRenderer.invoke('window:close'),
+        isMaximized:       () => ipcRenderer.invoke('window:isMaximized'),
+        onMaximizedChange: (cb: (maximized: boolean) => void) => {
+            ipcRenderer.on('window:maximized', (_event, maximized: boolean) => cb(maximized))
+        },
+    },
 })
