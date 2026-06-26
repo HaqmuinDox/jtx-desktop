@@ -40,10 +40,50 @@ const STATUS_PROGRESS: Record<string, number> = {
 
 function computeProgress(status: string | null, subtasks: Entry[]): number {
     if (subtasks.length > 0) {
-        const sum = subtasks.reduce((acc, s) => acc + (STATUS_PROGRESS[s.status ?? ''] ?? 0), 0)
+        const sum = subtasks.reduce((acc, s) => {
+            // Use stored progress for intermediate nodes; fall back to status mapping for leaves
+            const p = s.progress !== null && s.progress !== undefined
+                ? s.progress
+                : (STATUS_PROGRESS[s.status ?? ''] ?? 0)
+            return acc + p
+        }, 0)
         return Math.round(sum / subtasks.length)
     }
     return STATUS_PROGRESS[status ?? ''] ?? 0
+}
+
+function progressToStatus(progress: number): string {
+    if (progress >= 100) return 'COMPLETED'
+    if (progress > 0)    return 'IN-PROCESS'
+    return 'NEEDS-ACTION'
+}
+
+// Recomputes progress+status for entryId from its direct children, persists to DB,
+// then recurses up to entryId's parent until the root is reached.
+async function cascadeProgressFrom(entryId: string, allEntries: Entry[]): Promise<void> {
+    const entry    = allEntries.find(e => e.id === entryId)
+    if (!entry) return
+
+    const children = allEntries.filter(e => e.parent_uid === entryId && !e.deleted)
+    if (children.length === 0) return  // leaf — do not auto-derive status
+
+    const progress = Math.round(
+        children.reduce((acc, s) => {
+            const p = s.progress !== null && s.progress !== undefined
+                ? s.progress
+                : (STATUS_PROGRESS[s.status ?? ''] ?? 0)
+            return acc + p
+        }, 0) / children.length
+    )
+    const status = progressToStatus(progress)
+    await window.api.entries.update(entryId, { progress, status })
+
+    if (entry.parent_uid) {
+        const updated = allEntries.map(e =>
+            e.id === entryId ? { ...e, progress, status } : e
+        )
+        await cascadeProgressFrom(entry.parent_uid, updated)
+    }
 }
 
 // ── Edit state ────────────────────────────────────────────────────────────────
@@ -230,11 +270,8 @@ export function EntryDetail() {
         const entryType = selectedEntry.type
         await window.api.entries.delete(selectedEntry.id)
         if (parentUid && entryType === 'todo') {
-            const remaining   = entries.filter(e => e.parent_uid === parentUid && e.id !== selectedEntry.id && !e.deleted)
-            const parentEntry = entries.find(e => e.id === parentUid)
-            await window.api.entries.update(parentUid, {
-                progress: computeProgress(parentEntry?.status ?? null, remaining),
-            })
+            const allLatest = await window.api.entries.getAll()
+            await cascadeProgressFrom(parentUid, allLatest)
             setEntries(await window.api.entries.getAll())
         } else {
             setEntries(entries.filter(e => e.id !== selectedEntry.id))
@@ -251,12 +288,8 @@ export function EntryDetail() {
             progress: STATUS_PROGRESS[newStatus],
         })
         if (sub.parent_uid) {
-            const allLatest   = await window.api.entries.getAll()
-            const siblings    = allLatest.filter(e => e.parent_uid === sub.parent_uid && !e.deleted)
-            const parentEntry = allLatest.find(e => e.id === sub.parent_uid)
-            await window.api.entries.update(sub.parent_uid, {
-                progress: computeProgress(parentEntry?.status ?? null, siblings),
-            })
+            const allLatest = await window.api.entries.getAll()
+            await cascadeProgressFrom(sub.parent_uid, allLatest)
         }
         const allFinal = await window.api.entries.getAll()
         setEntries(allFinal)
@@ -329,16 +362,19 @@ export function EntryDetail() {
         const fields: Record<string, unknown> = { ...assembleFields(editState) }
         if (selectedEntry.type === 'todo') {
             const mySubtasks = entries.filter(e => e.parent_uid === selectedEntry.id && !e.deleted)
-            fields.progress = computeProgress(editState.status || null, mySubtasks)
+            if (mySubtasks.length > 0) {
+                // Non-leaf: status and progress are derived from children, not the form
+                const p = computeProgress(null, mySubtasks)
+                fields.progress = p
+                fields.status   = progressToStatus(p)
+            } else {
+                fields.progress = STATUS_PROGRESS[editState.status ?? ''] ?? 0
+            }
         }
         await window.api.entries.update(selectedEntry.id, fields)
         if (selectedEntry.parent_uid && selectedEntry.type === 'todo') {
-            const allLatest   = await window.api.entries.getAll()
-            const siblings    = allLatest.filter(e => e.parent_uid === selectedEntry.parent_uid && !e.deleted)
-            const parentEntry = allLatest.find(e => e.id === selectedEntry.parent_uid)
-            await window.api.entries.update(selectedEntry.parent_uid, {
-                progress: computeProgress(parentEntry?.status ?? null, siblings),
-            })
+            const allLatest = await window.api.entries.getAll()
+            await cascadeProgressFrom(selectedEntry.parent_uid, allLatest)
         }
         const updated  = await window.api.entries.getAll()
         setEntries(updated)
@@ -374,15 +410,11 @@ export function EntryDetail() {
                 ...assembleFields(editState),
                 ...(subProgress !== undefined && { progress: subProgress }),
             })
-            // Update parent: re-push with new CHILD refs and updated progress.
+            // Cascade from parent up the full ancestor chain.
             // entries:update sets dirty=1 + increments sequence, so no separate touch needed.
             if (creatingParentUid) {
-                const allLatest   = await window.api.entries.getAll()
-                const siblings    = allLatest.filter(e => e.parent_uid === creatingParentUid && !e.deleted)
-                const parentEntry = allLatest.find(e => e.id === creatingParentUid)
-                await window.api.entries.update(creatingParentUid, {
-                    progress: computeProgress(parentEntry?.status ?? null, siblings),
-                })
+                const allLatest = await window.api.entries.getAll()
+                await cascadeProgressFrom(creatingParentUid, allLatest)
             }
             const allFinal = await window.api.entries.getAll()
             setEntries(allFinal)
@@ -521,6 +553,7 @@ export function EntryDetail() {
                             state={editState}
                             onChange={next => setEditState(next)}
                             set={set}
+                            hasSubtasks={subtasks.length > 0}
                         />
                     </>
                 ) : isEditing && editState ? (
@@ -789,12 +822,13 @@ function ViewMode({ entry, subtasks, onAddSubtask, onSelectSubtask, onToggleSubt
 // ── Edit form ─────────────────────────────────────────────────────────────────
 
 function EditForm({
-    type, state, onChange, set,
+    type, state, onChange, set, hasSubtasks = false,
 }: {
-    type:    'journal' | 'note' | 'todo'
-    state:    EditState
-    onChange: (next: EditState) => void
-    set:      (field: keyof EditState) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => void
+    type:        'journal' | 'note' | 'todo'
+    state:        EditState
+    onChange:    (next: EditState) => void
+    set:         (field: keyof EditState) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => void
+    hasSubtasks?: boolean
 }) {
     const isTodo    = type === 'todo'
     const isJournal = type === 'journal'
@@ -828,12 +862,14 @@ function EditForm({
     return (
         <>
             {/* Status / Classification / Color row */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '8px', alignItems: 'end' }}>
-                <FormField label="Status">
-                    <select value={state.status} onChange={set('status')} style={selectStyle}>
-                        {statusOptions.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                    </select>
-                </FormField>
+            <div style={{ display: 'grid', gridTemplateColumns: `${isTodo && hasSubtasks ? '' : '1fr '}1fr auto`, gap: '8px', alignItems: 'end' }}>
+                {!(isTodo && hasSubtasks) && (
+                    <FormField label="Status">
+                        <select value={state.status} onChange={set('status')} style={selectStyle}>
+                            {statusOptions.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                        </select>
+                    </FormField>
+                )}
                 <FormField label="Classification">
                     <select value={state.classification} onChange={set('classification')} style={selectStyle}>
                         <option value="">None</option>

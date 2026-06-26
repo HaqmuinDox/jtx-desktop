@@ -10,7 +10,12 @@ const STATUS_PROGRESS: Record<string, number> = {
 
 function computeProgress(status: string | null, subtasks: Entry[]): number {
     if (subtasks.length > 0) {
-        const sum = subtasks.reduce((acc, s) => acc + (STATUS_PROGRESS[s.status ?? ''] ?? 0), 0)
+        const sum = subtasks.reduce((acc, s) => {
+            const p = s.progress !== null && s.progress !== undefined
+                ? s.progress
+                : (STATUS_PROGRESS[s.status ?? ''] ?? 0)
+            return acc + p
+        }, 0)
         return Math.round(sum / subtasks.length)
     }
     return STATUS_PROGRESS[status ?? ''] ?? 0
