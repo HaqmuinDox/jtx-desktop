@@ -35,7 +35,7 @@ Items are grouped by priority. Agents assigned in parentheses where applicable.
 - [x] **Journal "Untitled" fallback** — 3-tier fallback in both journals and notes: title → first body line (italic) → "Untitled" (muted italic) *(Agent 4)*
 - [ ] **Resizable panels** — Sidebar (220px) and detail panel (420px) are fixed-width
 - [ ] **Collections in sidebar** — Nextcloud collections not visible in navigation
-- [ ] **About / version info** — No way to see installed version
+- [x] **About / version info** — About section at the bottom of Settings; shows app name, version (from package.json), and author
 - [ ] **Autosave + inline editing** — Hard Edit/Save/Cancel cycle; professional apps autosave
 - [ ] **Custom window titlebar** — Electron default titlebar breaks visual unity on Windows
 

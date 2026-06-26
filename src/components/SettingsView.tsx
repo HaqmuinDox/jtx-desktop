@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useAppStore } from '../store/app.ts'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import { version } from '../../package.json'
 
 export function SettingsView() {
     const { setEntries, setLastSynced, setIsSyncing, setDeviceLocation, theme, setTheme, fontSize, setFontSize, accentColor, setAccentColor } = useAppStore()
@@ -367,6 +368,32 @@ export function SettingsView() {
                         {locSaved && (
                             <span style={{ fontSize: '12px', color: '#70c070' }}>Saved</span>
                         )}
+                    </div>
+                </div>
+            </div>
+
+            {/* About */}
+            <div style={{
+                maxWidth:   '480px',
+                marginTop:  '48px',
+                paddingTop: '24px',
+                borderTop:  '1px solid var(--border)',
+            }}>
+                <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '18px', fontWeight: 400, color: 'var(--text-primary)', marginBottom: '16px' }}>
+                    About
+                </h2>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <div style={{ display: 'flex', gap: '16px', fontSize: '13px' }}>
+                        <span style={{ color: 'var(--text-muted)', minWidth: '80px' }}>App</span>
+                        <span style={{ color: 'var(--text-secondary)' }}>jtx Desktop</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: '16px', fontSize: '13px' }}>
+                        <span style={{ color: 'var(--text-muted)', minWidth: '80px' }}>Version</span>
+                        <span style={{ color: 'var(--text-secondary)', fontFamily: 'monospace' }}>v{version}</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: '16px', fontSize: '13px' }}>
+                        <span style={{ color: 'var(--text-muted)', minWidth: '80px' }}>Author</span>
+                        <span style={{ color: 'var(--text-secondary)' }}>HaqmuinDox</span>
                     </div>
                 </div>
             </div>
