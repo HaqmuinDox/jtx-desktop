@@ -2,7 +2,7 @@ import { useAppStore } from '../store/app.ts'
 import type { Entry } from '../../shared/types'
 
 export function JournalsView() {
-    const { entries, selectedEntry, setSelectedEntry, setCreatingType } = useAppStore()
+    const { entries, selectedEntry, setSelectedEntry, setCreatingType, searchQuery } = useAppStore()
 
     const journals = entries
         .filter(e => e.type === 'journal')
@@ -12,8 +12,15 @@ export function JournalsView() {
             return dateB.localeCompare(dateA)
         })
 
+    const filteredJournals = searchQuery
+        ? journals.filter(e =>
+            (e.title ?? '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (e.body  ?? '').toLowerCase().includes(searchQuery.toLowerCase())
+          )
+        : journals
+
     // Group by month
-    const groups = journals.reduce<Record<string, Entry[]>>((acc, entry) => {
+    const groups = filteredJournals.reduce<Record<string, Entry[]>>((acc, entry) => {
         const date  = new Date(entry.start_date ?? entry.created_at)
         const key   = date.toLocaleDateString('en-US', { year: 'numeric', month: 'long' })
         if (!acc[key]) acc[key] = []
@@ -29,6 +36,14 @@ export function JournalsView() {
                 subtitle="Entries from jtx Board will appear here after syncing"
                 onNew={() => setCreatingType('journal')}
             />
+        )
+    }
+
+    if (filteredJournals.length === 0) {
+        return (
+            <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
+                No results for "{searchQuery}"
+            </div>
         )
     }
 

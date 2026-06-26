@@ -36,6 +36,12 @@ interface AppState {
 
     deviceLocation:    DeviceLocation | null
     setDeviceLocation: (loc: DeviceLocation | null) => void
+
+    searchQuery:    string
+    setSearchQuery: (q: string) => void
+
+    sidebarCollapsed:    boolean
+    setSidebarCollapsed: (v: boolean) => void
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -65,4 +71,13 @@ export const useAppStore = create<AppState>((set) => ({
 
     deviceLocation:    null,
     setDeviceLocation: (deviceLocation) => set({ deviceLocation }),
+
+    searchQuery:    '',
+    setSearchQuery: (searchQuery) => set({ searchQuery }),
+
+    sidebarCollapsed: localStorage.getItem('jtx_sidebar') === 'true',
+    setSidebarCollapsed: (sidebarCollapsed) => {
+        localStorage.setItem('jtx_sidebar', String(sidebarCollapsed))
+        set({ sidebarCollapsed })
+    },
 }))

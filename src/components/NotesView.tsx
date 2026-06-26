@@ -2,11 +2,18 @@ import { useAppStore } from '../store/app.ts'
 import type { Entry } from '../../shared/types'
 
 export function NotesView() {
-    const { entries, selectedEntry, setSelectedEntry, setCreatingType } = useAppStore()
+    const { entries, selectedEntry, setSelectedEntry, setCreatingType, searchQuery } = useAppStore()
 
     const notes = entries
         .filter(e => e.type === 'note')
         .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
+
+    const filteredNotes = searchQuery
+        ? notes.filter(e =>
+            (e.title ?? '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (e.body  ?? '').toLowerCase().includes(searchQuery.toLowerCase())
+          )
+        : notes
 
     if (notes.length === 0) {
         return (
@@ -16,6 +23,14 @@ export function NotesView() {
                 subtitle="Floating notes from jtx Board will appear here after syncing"
                 onNew={() => setCreatingType('note')}
             />
+        )
+    }
+
+    if (filteredNotes.length === 0) {
+        return (
+            <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
+                No results for "{searchQuery}"
+            </div>
         )
     }
 
@@ -41,7 +56,7 @@ export function NotesView() {
                         marginLeft: '12px',
                         fontWeight: 300,
                     }}>
-                        {notes.length}
+                        {filteredNotes.length}
                     </span>
                 </h1>
                 <NewButton onClick={() => setCreatingType('note')} />
@@ -53,7 +68,7 @@ export function NotesView() {
                 gridTemplateColumns:   'repeat(auto-fill, minmax(220px, 1fr))',
                 gap:                   '12px',
             }}>
-                {notes.map(note => (
+                {filteredNotes.map(note => (
                     <NoteCard
                         key={note.id}
                         note={note}

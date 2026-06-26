@@ -29,7 +29,7 @@ const STATUS_GROUPS = [
 ]
 
 export function TodosView() {
-    const { entries, selectedEntry, setSelectedEntry, setCreatingType } = useAppStore()
+    const { entries, selectedEntry, setSelectedEntry, setCreatingType, searchQuery } = useAppStore()
 
     const todos = entries
         .filter(e => e.type === 'todo' && !e.parent_uid)
@@ -39,6 +39,14 @@ export function TodosView() {
             if (pa !== pb) return pa - pb
             return b.updated_at.localeCompare(a.updated_at)
         })
+
+    const filteredTodos = searchQuery
+        ? todos.filter(e =>
+            (e.title ?? '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (e.body  ?? '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (e.categories ?? '').toLowerCase().includes(searchQuery.toLowerCase())
+          )
+        : todos
 
     const subtasks = entries.filter(e => e.type === 'todo' && e.parent_uid)
 
@@ -50,6 +58,14 @@ export function TodosView() {
                 subtitle="Tasks from jtx Board will appear here after syncing"
                 onNew={() => setCreatingType('todo')}
             />
+        )
+    }
+
+    if (filteredTodos.length === 0) {
+        return (
+            <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
+                No results for "{searchQuery}"
+            </div>
         )
     }
 
@@ -75,14 +91,14 @@ export function TodosView() {
                         marginLeft: '12px',
                         fontWeight: 300,
                     }}>
-                        {todos.length}
+                        {filteredTodos.length}
                     </span>
                 </h1>
                 <NewButton onClick={() => setCreatingType('todo')} />
             </div>
 
             {STATUS_GROUPS.map(({ status, label, color }) => {
-                const group = todos.filter(e => (e.status ?? 'NEEDS-ACTION') === status)
+                const group = filteredTodos.filter(e => (e.status ?? 'NEEDS-ACTION') === status)
                 if (group.length === 0) return null
                 return (
                     <div key={status} style={{ marginBottom: '32px' }}>
