@@ -1,6 +1,8 @@
 import { useEditor, EditorContent } from '@tiptap/react'
+import { BubbleMenu } from '@tiptap/react/menus'
 import StarterKit from '@tiptap/starter-kit'
-import { useEffect } from 'react'
+import Placeholder from '@tiptap/extension-placeholder'
+import { useEffect, useState } from 'react'
 
 interface EntryEditorProps {
     content:   string
@@ -8,31 +10,52 @@ interface EntryEditorProps {
     readOnly?: boolean
 }
 
+function btnStyle(active: boolean) {
+    return {
+        background:   active ? 'var(--bg-active)' : 'transparent',
+        border:       'none',
+        color:        active ? 'var(--text-primary)' : 'var(--text-secondary)',
+        fontSize:     '12px',
+        fontFamily:   'var(--font-ui)',
+        padding:      '3px 7px',
+        borderRadius: 'var(--radius-sm)',
+        cursor:       'pointer' as const,
+    }
+}
+
 export function EntryEditor({ content, onChange, readOnly = false }: EntryEditorProps) {
+    const [wordCount, setWordCount] = useState(0)
+
     const editor = useEditor({
-        extensions: [StarterKit],
-        content:    markdownToHtml(content),
-        editable:   !readOnly,
-        onUpdate:   ({ editor }) => {
+        extensions: [
+            StarterKit,
+            Placeholder.configure({ placeholder: 'Start writing…' }),
+        ],
+        content:  markdownToHtml(content),
+        editable: !readOnly,
+        onUpdate: ({ editor }) => {
             onChange(htmlToMarkdown(editor.getHTML()))
+            setWordCount(editor.getText().split(/\s+/).filter(w => w.length > 0).length)
         },
     })
 
-    // Update content when entry changes
+    // Update content and word count when entry changes
     useEffect(() => {
-        if (editor && !editor.isDestroyed) {
-            const current = htmlToMarkdown(editor.getHTML())
-            if (current !== content) {
-                editor.commands.setContent(markdownToHtml(content), { emitUpdate: false })
-            }
+        if (!editor || editor.isDestroyed) return
+        const current = htmlToMarkdown(editor.getHTML())
+        if (current !== content) {
+            editor.commands.setContent(markdownToHtml(content), { emitUpdate: false })
         }
+        setWordCount(editor.getText().split(/\s+/).filter(w => w.length > 0).length)
     }, [content, editor])
+
+    const readingTime = Math.ceil(wordCount / 200)
 
     return (
         <div style={{
-            flex:        1,
-            overflowY:   'auto',
-            cursor:      readOnly ? 'default' : 'text',
+            flex:      1,
+            overflowY: 'auto',
+            cursor:    readOnly ? 'default' : 'text',
         }}>
             <style>{`
         .ProseMirror {
@@ -59,7 +82,72 @@ export function EntryEditor({ content, onChange, readOnly = false }: EntryEditor
         .ProseMirror blockquote { border-left: 3px solid var(--accent-dim); margin: 0 0 0.7em; padding: 4px 0 4px 14px; color: var(--text-muted); font-style: italic; }
         .ProseMirror p.is-editor-empty:first-child::before { content: attr(data-placeholder); color: var(--text-muted); pointer-events: none; float: left; height: 0; }
       `}</style>
+            {editor && !readOnly && (
+                <BubbleMenu editor={editor}>
+                    <div style={{
+                        display:      'flex',
+                        alignItems:   'center',
+                        background:   'var(--bg-raised)',
+                        border:       '1px solid var(--border-strong)',
+                        borderRadius: 'var(--radius-md)',
+                        boxShadow:    '0 4px 12px rgba(0,0,0,0.5)',
+                        padding:      '4px',
+                        gap:          '2px',
+                    }}>
+                        <button
+                            onClick={() => editor.chain().focus().toggleBold().run()}
+                            style={btnStyle(editor.isActive('bold'))}
+                        >
+                            B
+                        </button>
+                        <button
+                            onClick={() => editor.chain().focus().toggleItalic().run()}
+                            style={btnStyle(editor.isActive('italic'))}
+                        >
+                            I
+                        </button>
+                        <button
+                            onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+                            style={btnStyle(editor.isActive('heading', { level: 2 }))}
+                        >
+                            H2
+                        </button>
+                        <button
+                            onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+                            style={btnStyle(editor.isActive('heading', { level: 3 }))}
+                        >
+                            H3
+                        </button>
+                        <button
+                            onClick={() => editor.chain().focus().toggleBulletList().run()}
+                            style={btnStyle(editor.isActive('bulletList'))}
+                        >
+                            •
+                        </button>
+                        <button
+                            onClick={() => editor.chain().focus().toggleOrderedList().run()}
+                            style={btnStyle(editor.isActive('orderedList'))}
+                        >
+                            1.
+                        </button>
+                    </div>
+                </BubbleMenu>
+            )}
             <EditorContent editor={editor} />
+            {wordCount > 0 && (
+                <div style={{
+                    fontSize:   '12px',
+                    color:      'var(--text-muted)',
+                    textAlign:  'right',
+                    marginTop:  '6px',
+                    paddingTop: '4px',
+                    borderTop:  '1px solid var(--border)',
+                }}>
+                    {wordCount >= 200
+                        ? `${wordCount} words · ~${readingTime} min read`
+                        : `${wordCount} words`}
+                </div>
+            )}
         </div>
     )
 }
