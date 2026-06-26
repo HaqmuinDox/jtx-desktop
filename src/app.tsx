@@ -43,8 +43,50 @@ declare global {
     }
 }
 
+function startDetailResize(e: React.MouseEvent) {
+    e.preventDefault()
+    const startX    = e.clientX
+    const startWidth = parseInt(
+        getComputedStyle(document.documentElement).getPropertyValue('--detail-width')
+    )
+    const onMove = (mv: MouseEvent) => {
+        const w = Math.max(300, Math.min(700, startWidth - (mv.clientX - startX)))
+        document.documentElement.style.setProperty('--detail-width', `${w}px`)
+        localStorage.setItem('jtx_detail_width', String(w))
+    }
+    const onUp = () => {
+        document.body.style.cursor    = ''
+        document.body.style.userSelect = ''
+        window.removeEventListener('mousemove', onMove)
+        window.removeEventListener('mouseup',   onUp)
+    }
+    document.body.style.cursor    = 'col-resize'
+    document.body.style.userSelect = 'none'
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup',   onUp)
+}
+
+function DetailResizeHandle() {
+    const normal = 'linear-gradient(to right, transparent 2px, var(--border-strong) 2px, var(--border-strong) 3px, transparent 3px)'
+    const hover  = 'linear-gradient(to right, transparent 2px, var(--accent-dim)    2px, var(--accent-dim)    3px, transparent 3px)'
+    return (
+        <div
+            onMouseDown={startDetailResize}
+            onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = hover}
+            onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = normal}
+            style={{ width: '5px', flexShrink: 0, cursor: 'col-resize', background: normal }}
+        />
+    )
+}
+
 export default function App() {
     const { activeSection, selectedEntry, creatingType, setEntries, setDeviceLocation, setActiveSection, setCreatingType, setSelectedEntry, setIsSyncing, setLastSynced } = useAppStore()
+
+    // Restore persisted detail panel width
+    useEffect(() => {
+        const dw = localStorage.getItem('jtx_detail_width')
+        if (dw) document.documentElement.style.setProperty('--detail-width', `${dw}px`)
+    }, [])
 
     // Load all entries on mount
     useEffect(() => {
@@ -137,7 +179,10 @@ export default function App() {
                 </main>
 
                 {(selectedEntry || creatingType) && (
-                    <EntryDetail />
+                    <>
+                        <DetailResizeHandle />
+                        <EntryDetail />
+                    </>
                 )}
             </div>
 
