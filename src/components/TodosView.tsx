@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useAppStore } from '../store/app.ts'
 import type { Entry } from '../../shared/types'
 
@@ -29,22 +29,55 @@ const STATUS_GROUPS = [
     { status: 'CANCELLED',    label: 'Cancelled',   color: '#605850' },
 ]
 
+type PriorityFilter = 'all' | 'high' | 'medium' | 'low' | 'none'
+const ALL_STATUSES = STATUS_GROUPS.map(g => g.status)
+
+const btnBase = {
+    background:   'transparent',
+    border:       '1px solid var(--border)',
+    borderRadius: 'var(--radius-sm)',
+    color:        'var(--text-muted)',
+    fontSize:     '11px',
+    fontFamily:   'var(--font-ui)',
+    padding:      '2px 8px',
+    cursor:       'pointer',
+}
+const btnActive = {
+    background: 'var(--accent-glow)',
+    border:     '1px solid var(--accent-dim)',
+    color:      'var(--accent)',
+}
+
 export function TodosView() {
     const { entries, selectedEntry, setSelectedEntry, setCreatingType, searchQuery } = useAppStore()
+
     const [sortBy, setSortBy] = useState<'priority' | 'due' | 'alpha' | 'updated'>(
         () => (localStorage.getItem('jtx_todos_sort') as 'priority' | 'due' | 'alpha' | 'updated' | null) ?? 'priority'
     )
     const [sortAsc, setSortAsc] = useState<boolean>(
         () => localStorage.getItem('jtx_todos_sort_asc') !== 'false'
     )
-    const [showCompleted, setShowCompleted] = useState<boolean>(
-        () => localStorage.getItem('jtx_todos_show_completed') !== 'false'
+    const [showFilters, setShowFilters] = useState(false)
+    const [filterPriority, setFilterPriority] = useState<PriorityFilter>(
+        () => (localStorage.getItem('jtx_todos_filter_priority') as PriorityFilter | null) ?? 'all'
     )
+    const [filterTags, setFilterTags] = useState<string[]>(() => {
+        try { return JSON.parse(localStorage.getItem('jtx_todos_filter_tags') ?? '[]') } catch { return [] }
+    })
+    const [filterStatuses, setFilterStatuses] = useState<string[]>(() => {
+        try {
+            const saved = localStorage.getItem('jtx_todos_filter_statuses')
+            if (saved) return JSON.parse(saved)
+        } catch { /* empty */ }
+        // backwards compat: respect old showCompleted pref
+        const showDone = localStorage.getItem('jtx_todos_show_completed') !== 'false'
+        return showDone ? ALL_STATUSES : ['NEEDS-ACTION', 'IN-PROCESS']
+    })
 
     const todos = entries
         .filter(e => e.type === 'todo' && !e.parent_uid)
         .sort((a, b) => {
-            let result = 0
+            let result
             if (sortBy === 'priority') {
                 const pa = a.priority ?? 9
                 const pb = b.priority ?? 9
@@ -62,15 +95,66 @@ export function TodosView() {
             return sortAsc ? result : -result
         })
 
-    const filteredTodos = searchQuery
-        ? todos.filter(e =>
-            (e.title ?? '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-            (e.body  ?? '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-            (e.categories ?? '').toLowerCase().includes(searchQuery.toLowerCase())
-          )
-        : todos
-
     const subtasks = entries.filter(e => e.type === 'todo' && e.parent_uid)
+
+    const allTags = useMemo(() => {
+        const tagSet = new Set<string>()
+        entries
+            .filter(e => e.type === 'todo' && !e.parent_uid)
+            .forEach(t => {
+                try {
+                    const tags: string[] = JSON.parse(t.categories ?? '[]')
+                    tags.forEach(tag => tagSet.add(tag))
+                } catch { /* empty */ }
+            })
+        return [...tagSet].sort()
+    }, [entries])
+
+    const activeFilterCount =
+        (filterPriority !== 'all' ? 1 : 0) +
+        filterTags.length +
+        (filterStatuses.length < ALL_STATUSES.length ? 1 : 0)
+
+    const filteredTodos = todos.filter(e => {
+        if (searchQuery) {
+            const q = searchQuery.toLowerCase()
+            if (
+                !(e.title ?? '').toLowerCase().includes(q) &&
+                !(e.body  ?? '').toLowerCase().includes(q) &&
+                !(e.categories ?? '').toLowerCase().includes(q)
+            ) return false
+        }
+        if (!filterStatuses.includes(e.status ?? 'NEEDS-ACTION')) return false
+        if (filterPriority === 'none') {
+            if (e.priority !== null && e.priority !== undefined) return false
+        } else if (filterPriority === 'high') {
+            const p = e.priority ?? 0; if (p < 1 || p > 3) return false
+        } else if (filterPriority === 'medium') {
+            const p = e.priority ?? 0; if (p < 4 || p > 6) return false
+        } else if (filterPriority === 'low') {
+            const p = e.priority ?? 0; if (p < 7 || p > 9) return false
+        }
+        if (filterTags.length > 0) {
+            try {
+                const tags: string[] = JSON.parse(e.categories ?? '[]')
+                if (!filterTags.some(ft => tags.includes(ft))) return false
+            } catch { return false }
+        }
+        return true
+    })
+
+    const persistStatuses = (next: string[]) => {
+        localStorage.setItem('jtx_todos_filter_statuses', JSON.stringify(next))
+        setFilterStatuses(next)
+    }
+    const persistPriority = (p: PriorityFilter) => {
+        localStorage.setItem('jtx_todos_filter_priority', p)
+        setFilterPriority(p)
+    }
+    const persistTags = (tags: string[]) => {
+        localStorage.setItem('jtx_todos_filter_tags', JSON.stringify(tags))
+        setFilterTags(tags)
+    }
 
     if (todos.length === 0) {
         return (
@@ -83,21 +167,10 @@ export function TodosView() {
         )
     }
 
-    if (filteredTodos.length === 0) {
-        return (
-            <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
-                No results for "{searchQuery}"
-            </div>
-        )
-    }
-
     return (
-        <div style={{
-            flex:      1,
-            overflowY: 'auto',
-            padding:   '32px 36px',
-        }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px' }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '32px 36px' }}>
+            {/* Header row */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
                 <h1 style={{
                     fontFamily: 'var(--font-display)',
                     fontSize:   '26px',
@@ -118,23 +191,14 @@ export function TodosView() {
                 </h1>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <button
-                        onClick={() => {
-                            const next = !showCompleted
-                            localStorage.setItem('jtx_todos_show_completed', String(next))
-                            setShowCompleted(next)
-                        }}
+                        onClick={() => setShowFilters(!showFilters)}
                         style={{
-                            background:   'transparent',
-                            border:       '1px solid var(--border)',
-                            borderRadius: 'var(--radius-sm)',
-                            color:        'var(--text-muted)',
-                            fontSize:     '11px',
-                            fontFamily:   'var(--font-ui)',
-                            padding:      '3px 8px',
-                            cursor:       'pointer',
+                            ...btnBase,
+                            ...(showFilters || activeFilterCount > 0 ? btnActive : {}),
+                            padding: '3px 8px',
                         }}
                     >
-                        {showCompleted ? 'Hide done' : 'Show done'}
+                        Filter{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
                     </button>
                     <select
                         value={sortBy}
@@ -184,67 +248,157 @@ export function TodosView() {
                 </div>
             </div>
 
-            {STATUS_GROUPS.map(({ status, label, color }) => {
-                const isDoneGroup = status === 'COMPLETED' || status === 'CANCELLED'
-                if (isDoneGroup && !showCompleted) return null
-
-                const group = filteredTodos.filter(e => (e.status ?? 'NEEDS-ACTION') === status)
-                if (group.length === 0) return null
-                return (
-                    <div key={status} style={{ marginBottom: '32px' }}>
-                        {/* Group header */}
-                        <div style={{
-                            display:      'flex',
-                            alignItems:   'center',
-                            gap:          '8px',
-                            marginBottom: '8px',
-                        }}>
-                            <div style={{
-                                width:        '8px',
-                                height:       '8px',
-                                borderRadius: '50%',
-                                background:   color,
-                                flexShrink:   0,
-                            }} />
-                            <span style={{
-                                fontSize:      '11px',
-                                color:         color,
-                                letterSpacing: '0.08em',
-                                textTransform: 'uppercase',
-                                fontWeight:    500,
-                            }}>
-                {label}
-              </span>
-                            <span style={{
-                                fontSize: '11px',
-                                color:    'var(--text-muted)',
-                            }}>
-                {group.length}
-              </span>
-                            <div style={{
-                                flex:       1,
-                                height:     '1px',
-                                background: 'var(--border)',
-                            }} />
+            {/* Filter panel */}
+            {showFilters && (
+                <div style={{
+                    display:      'flex',
+                    gap:          '20px',
+                    flexWrap:     'wrap',
+                    alignItems:   'flex-end',
+                    marginBottom: '24px',
+                    padding:      '12px 16px',
+                    background:   'var(--bg-surface)',
+                    borderRadius: 'var(--radius-md)',
+                    border:       '1px solid var(--border)',
+                }}>
+                    {/* Status */}
+                    <div>
+                        <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px' }}>
+                            Status
                         </div>
+                        <div style={{ display: 'flex', gap: '4px' }}>
+                            {STATUS_GROUPS.map(({ status, label }) => {
+                                const active = filterStatuses.includes(status)
+                                return (
+                                    <button
+                                        key={status}
+                                        onClick={() => persistStatuses(
+                                            active
+                                                ? filterStatuses.filter(s => s !== status)
+                                                : [...filterStatuses, status]
+                                        )}
+                                        style={{ ...btnBase, ...(active ? btnActive : {}) }}
+                                    >
+                                        {label}
+                                    </button>
+                                )
+                            })}
+                        </div>
+                    </div>
 
-                        {/* Todo rows */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                            {group.map(entry => (
-                                <TodoRow
-                                    key={entry.id}
-                                    entry={entry}
-                                    isSelected={selectedEntry?.id === entry.id}
-                                    onClick={() => setSelectedEntry(
-                                        selectedEntry?.id === entry.id ? null : entry
-                                    )}
-                                    subtasks={subtasks.filter(s => s.parent_uid === entry.id)}
-                                />
+                    {/* Priority */}
+                    <div>
+                        <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px' }}>
+                            Priority
+                        </div>
+                        <div style={{ display: 'flex', gap: '4px' }}>
+                            {(['all', 'high', 'medium', 'low', 'none'] as PriorityFilter[]).map(p => (
+                                <button
+                                    key={p}
+                                    onClick={() => persistPriority(p)}
+                                    style={{ ...btnBase, ...(filterPriority === p ? btnActive : {}), textTransform: 'capitalize' }}
+                                >
+                                    {p}
+                                </button>
                             ))}
                         </div>
                     </div>
-                )
-            })}
+
+                    {/* Tags */}
+                    {allTags.length > 0 && (
+                        <div style={{ flex: 1, minWidth: '120px' }}>
+                            <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px' }}>
+                                Tags
+                            </div>
+                            <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                                {allTags.map(tag => {
+                                    const active = filterTags.includes(tag)
+                                    return (
+                                        <button
+                                            key={tag}
+                                            onClick={() => persistTags(
+                                                active
+                                                    ? filterTags.filter(t => t !== tag)
+                                                    : [...filterTags, tag]
+                                            )}
+                                            style={{ ...btnBase, ...(active ? btnActive : {}) }}
+                                        >
+                                            {tag}
+                                        </button>
+                                    )
+                                })}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Clear all */}
+                    {activeFilterCount > 0 && (
+                        <button
+                            onClick={() => {
+                                persistPriority('all')
+                                persistTags([])
+                                persistStatuses(ALL_STATUSES)
+                            }}
+                            style={{
+                                background:    'transparent',
+                                border:        'none',
+                                color:         'var(--text-muted)',
+                                fontSize:      '11px',
+                                fontFamily:    'var(--font-ui)',
+                                cursor:        'pointer',
+                                paddingBottom: '2px',
+                            }}
+                        >
+                            Clear all
+                        </button>
+                    )}
+                </div>
+            )}
+
+            {filteredTodos.length === 0 ? (
+                <div style={{ padding: '60px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
+                    {searchQuery ? `No results for "${searchQuery}"` : 'No tasks match the current filters'}
+                </div>
+            ) : (
+                STATUS_GROUPS.map(({ status, label, color }) => {
+                    if (!filterStatuses.includes(status)) return null
+                    const group = filteredTodos.filter(e => (e.status ?? 'NEEDS-ACTION') === status)
+                    if (group.length === 0) return null
+                    return (
+                        <div key={status} style={{ marginBottom: '32px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                                <div style={{
+                                    width: '8px', height: '8px',
+                                    borderRadius: '50%', background: color, flexShrink: 0,
+                                }} />
+                                <span style={{
+                                    fontSize: '11px', color,
+                                    letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 500,
+                                }}>
+                                    {label}
+                                </span>
+                                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                                    {group.length}
+                                </span>
+                                <div style={{ flex: 1, height: '1px', background: 'var(--border)' }} />
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                {group.map(entry => (
+                                    <TodoRow
+                                        key={entry.id}
+                                        entry={entry}
+                                        isSelected={selectedEntry?.id === entry.id}
+                                        onClick={() => setSelectedEntry(
+                                            selectedEntry?.id === entry.id ? null : entry
+                                        )}
+                                        subtasks={subtasks.filter(s => s.parent_uid === entry.id)}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                    )
+                })
+            )}
         </div>
     )
 }
