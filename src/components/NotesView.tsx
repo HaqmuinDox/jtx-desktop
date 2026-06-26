@@ -3,7 +3,7 @@ import { useAppStore } from '../store/app.ts'
 import type { Entry } from '../../shared/types'
 
 export function NotesView() {
-    const { entries, selectedEntry, setSelectedEntry, setCreatingType } = useAppStore()
+    const { entries, selectedEntry, setSelectedEntry, setCreatingType, searchQuery } = useAppStore()
     const [sortOrder, setSortOrder] = useState<'updated' | 'created' | 'alpha'>('updated')
     const [layout, setLayout] = useState<'grid' | 'list'>('grid')
 
@@ -15,6 +15,13 @@ export function NotesView() {
             return (a.title ?? '').localeCompare(b.title ?? '', undefined, { sensitivity: 'base' })
         })
 
+    const filteredNotes = searchQuery
+        ? notes.filter(e =>
+            (e.title ?? '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (e.body  ?? '').toLowerCase().includes(searchQuery.toLowerCase())
+          )
+        : notes
+
     if (notes.length === 0) {
         return (
             <Empty
@@ -23,6 +30,14 @@ export function NotesView() {
                 subtitle="Floating notes from jtx Board will appear here after syncing"
                 onNew={() => setCreatingType('note')}
             />
+        )
+    }
+
+    if (filteredNotes.length === 0) {
+        return (
+            <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
+                No results for "{searchQuery}"
+            </div>
         )
     }
 
@@ -48,7 +63,7 @@ export function NotesView() {
                         marginLeft: '12px',
                         fontWeight: 300,
                     }}>
-                        {notes.length}
+                        {filteredNotes.length}
                     </span>
                 </h1>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -110,7 +125,7 @@ export function NotesView() {
                     gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
                     gap:                 '12px',
                 }}>
-                    {notes.map(note => (
+                    {filteredNotes.map(note => (
                         <NoteCard
                             key={note.id}
                             note={note}
@@ -124,7 +139,7 @@ export function NotesView() {
             ) : (
                 /* List */
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    {notes.map(note => (
+                    {filteredNotes.map(note => (
                         <NoteListRow
                             key={note.id}
                             note={note}

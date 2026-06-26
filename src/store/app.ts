@@ -41,6 +41,12 @@ interface AppState {
     setTheme: (t: 'dark' | 'light' | 'system') => void
     fontSize: 'sm' | 'md' | 'lg' | 'xl'
     setFontSize: (s: 'sm' | 'md' | 'lg' | 'xl') => void
+
+    searchQuery:    string
+    setSearchQuery: (q: string) => void
+
+    sidebarCollapsed:    boolean
+    setSidebarCollapsed: (v: boolean) => void
 }
 
 // Read persisted theme/fontSize before create() call
@@ -115,5 +121,14 @@ export const useAppStore = create<AppState>((set) => ({
         localStorage.setItem('jtx_fontsize', fontSize)
         applyFontSize(fontSize)
         set({ fontSize })
+    },
+
+    searchQuery:    '',
+    setSearchQuery: (searchQuery) => set({ searchQuery }),
+
+    sidebarCollapsed: localStorage.getItem('jtx_sidebar') === 'true',
+    setSidebarCollapsed: (sidebarCollapsed) => {
+        localStorage.setItem('jtx_sidebar', String(sidebarCollapsed))
+        set({ sidebarCollapsed })
     },
 }))
