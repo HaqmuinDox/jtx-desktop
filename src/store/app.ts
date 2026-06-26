@@ -24,6 +24,11 @@ interface AppState {
     creatingType:    CreatingType | null
     setCreatingType: (t: CreatingType | null) => void
 
+    creatingParentUid:        string | null
+    setCreatingParentUid:     (uid: string | null) => void
+    creatingParentCollection: string | null
+    setCreatingParentCollection: (url: string | null) => void
+
     isSyncing:    boolean
     setIsSyncing: (v: boolean) => void
     lastSynced:   string | null
@@ -35,7 +40,7 @@ interface AppState {
 
 export const useAppStore = create<AppState>((set) => ({
     activeSection:    'journals',
-    setActiveSection: (activeSection) => set({ activeSection, selectedEntry: null, creatingType: null }),
+    setActiveSection: (activeSection) => set({ activeSection, selectedEntry: null, creatingType: null, creatingParentUid: null, creatingParentCollection: null }),
 
     entries:    [],
     setEntries: (entries) => set({ entries }),
@@ -46,6 +51,12 @@ export const useAppStore = create<AppState>((set) => ({
 
     creatingType:    null,
     setCreatingType: (creatingType) => set({ creatingType, selectedEntry: null }),
+
+    creatingParentUid:    null,
+    setCreatingParentUid: (creatingParentUid) => set({ creatingParentUid }),
+
+    creatingParentCollection:    null,
+    setCreatingParentCollection: (creatingParentCollection) => set({ creatingParentCollection }),
 
     isSyncing:    false,
     setIsSyncing: (isSyncing) => set({ isSyncing }),

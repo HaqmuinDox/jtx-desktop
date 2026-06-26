@@ -20,6 +20,7 @@ declare global {
                 create:   (entry: Record<string, unknown>) => Promise<{ id: string }>
                 update:   (id: string, fields: Record<string, unknown>) => Promise<{ ok: boolean }>
                 delete:   (id: string) => Promise<{ ok: boolean }>
+                touch:    (id: string) => Promise<{ ok: boolean }>
             }
             collections: {
                 getAll:  () => Promise<unknown[]>

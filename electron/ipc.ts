@@ -145,6 +145,18 @@ export function registerIpcHandlers() {
         return { ok: true }
     })
 
+    // Marks an entry dirty=1 without changing its content.
+    // Used when a relationship change (e.g. new subtask) means the entry must
+    // be re-pushed so the server iCal reflects the updated RELATED-TO links.
+    ipcMain.handle('entries:touch', (_event, id: string) => {
+        const db = getDb()
+        db.prepare(`
+            UPDATE entries SET dirty = 1, sequence = COALESCE(sequence, 0) + 1
+            WHERE id = @id AND deleted = 0
+        `).run({ id })
+        return { ok: true }
+    })
+
     // ── Sync ─────────────────────────────────────────────────────────────────
 
     ipcMain.handle('sync:getStatus', () => {

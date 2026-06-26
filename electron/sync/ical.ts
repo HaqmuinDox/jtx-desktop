@@ -189,7 +189,7 @@ export function parseIcs(
 
 // ── Serialize an Entry to .ics text ───────────────────────────────────────────
 
-export function serializeEntry(entry: Entry): string {
+export function serializeEntry(entry: Entry, childUids: string[] = []): string {
     const vcalendar = new ICAL.Component(['vcalendar', [], []])
     vcalendar.addPropertyWithValue('version',  '2.0')
     vcalendar.addPropertyWithValue('prodid',   '-//jtx-desktop//EN')
@@ -310,6 +310,12 @@ export function serializeEntry(entry: Entry): string {
             const relProp = new ICAL.Property('related-to')
             relProp.setParameter('reltype', 'PARENT')
             relProp.setValue(entry.parent_uid)
+            item.addProperty(relProp)
+        }
+        for (const childUid of childUids) {
+            const relProp = new ICAL.Property('related-to')
+            relProp.setParameter('reltype', 'CHILD')
+            relProp.setValue(childUid)
             item.addProperty(relProp)
         }
     }

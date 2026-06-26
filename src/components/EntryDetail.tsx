@@ -140,6 +140,8 @@ export function EntryDetail() {
         selectedEntry, setSelectedEntry,
         entries, setEntries,
         creatingType, setCreatingType, addEntry,
+        creatingParentUid, setCreatingParentUid,
+        creatingParentCollection, setCreatingParentCollection,
         deviceLocation,
     } = useAppStore()
 
@@ -160,10 +162,15 @@ export function EntryDetail() {
             window.api.collections.getAll().then(cols => {
                 const typed = cols as { url: string; display_name: string | null }[]
                 setCollections(typed)
-                const match = defaults?.collection
-                    ? typed.find(c => c.url === defaults.collection)
-                    : null
-                setSelectedCollection(match?.url ?? typed[0]?.url ?? '')
+                if (creatingParentCollection) {
+                    // Subtasks must live in the same collection as their parent.
+                    setSelectedCollection(creatingParentCollection)
+                } else {
+                    const match = defaults?.collection
+                        ? typed.find(c => c.url === defaults.collection)
+                        : null
+                    setSelectedCollection(match?.url ?? typed[0]?.url ?? '')
+                }
             })
         }
     }, [isCreating, creatingType]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -207,9 +214,18 @@ export function EntryDetail() {
         setSelectedEntry(null)
     }
 
+    const handleAddSubtask = () => {
+        if (!selectedEntry) return
+        setCreatingParentUid(selectedEntry.id)
+        setCreatingParentCollection(selectedEntry.collection)
+        setCreatingType('todo')
+    }
+
     const handleClose = () => {
         if (isCreating) {
             setCreatingType(null)
+            setCreatingParentUid(null)
+            setCreatingParentCollection(null)
             setEditState(null)
         } else {
             setSelectedEntry(null)
@@ -274,21 +290,31 @@ export function EntryDetail() {
         if (!editState || !creatingType || !selectedCollection) return
         setSaving(true)
         try {
-            // Remember this entry's context for the next new entry of the same type
-            const prev = loadEntryDefaults()
-            saveEntryDefaults({
-                collection:     selectedCollection,
-                classification: editState.classification,
-                status:         { ...prev?.status, [creatingType]: editState.status },
-            })
+            // Don't override the collection default when creating a subtask —
+            // the collection is locked to the parent's collection in that case.
+            if (!creatingParentUid) {
+                const prev = loadEntryDefaults()
+                saveEntryDefaults({
+                    collection:     selectedCollection,
+                    classification: editState.classification,
+                    status:         { ...prev?.status, [creatingType]: editState.status },
+                })
+            }
 
             const { id } = await window.api.entries.create({
                 type:       creatingType,
                 collection: selectedCollection,
+                parent_uid: creatingParentUid ?? undefined,
                 ...assembleFields(editState),
             })
             const fresh = await window.api.entries.getById(id) as Entry
             addEntry(fresh)
+            // Touch the parent so it gets re-pushed with updated CHILD refs.
+            if (creatingParentUid) {
+                await window.api.entries.touch(creatingParentUid)
+            }
+            setCreatingParentUid(null)
+            setCreatingParentCollection(null)
             setSelectedEntry(fresh)
             setEditState(null)
         } finally {
@@ -396,8 +422,8 @@ export function EntryDetail() {
             }}>
                 {isCreating && editState ? (
                     <>
-                        {/* Collection picker */}
-                        {collections.length > 0 ? (
+                        {/* Collection picker — hidden for subtasks (locked to parent's collection) */}
+                        {!creatingParentCollection && (collections.length > 0 ? (
                             <FormField label="Collection">
                                 <select
                                     value={selectedCollection}
@@ -415,7 +441,7 @@ export function EntryDetail() {
                             <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0 }}>
                                 No collections found — sync with Nextcloud first (Settings) to create a collection.
                             </p>
-                        )}
+                        ))}
                         <EditForm
                             type={currentType}
                             state={editState}
@@ -431,7 +457,12 @@ export function EntryDetail() {
                         set={set}
                     />
                 ) : selectedEntry ? (
-                    <ViewMode entry={selectedEntry} subtasks={subtasks} />
+                    <ViewMode
+                        entry={selectedEntry}
+                        subtasks={subtasks}
+                        onAddSubtask={handleAddSubtask}
+                        onSelectSubtask={setSelectedEntry}
+                    />
                 ) : null}
             </div>
         </aside>
@@ -440,7 +471,12 @@ export function EntryDetail() {
 
 // ── View mode ────────────────────────────────────────────────────────────────
 
-function ViewMode({ entry, subtasks }: { entry: Entry; subtasks: Entry[] }) {
+function ViewMode({ entry, subtasks, onAddSubtask, onSelectSubtask }: {
+    entry:           Entry
+    subtasks:        Entry[]
+    onAddSubtask:    () => void
+    onSelectSubtask: (sub: Entry) => void
+}) {
     const tags: string[] = (() => {
         try { return entry.categories ? JSON.parse(entry.categories) : [] }
         catch { return [] }
@@ -598,14 +634,24 @@ function ViewMode({ entry, subtasks }: { entry: Entry; subtasks: Entry[] }) {
             )}
 
             {/* Subtasks */}
-            {subtasks.length > 0 && (
+            {entry.type === 'todo' && (
                 <div style={{ borderTop: '1px solid var(--border)', paddingTop: '14px' }}>
                     <SectionLabel>
-                        Subtasks · {subtasks.filter(s => s.status === 'COMPLETED').length}/{subtasks.length} done
+                        {'Subtasks'}
+                        {subtasks.length > 0 && ` · ${subtasks.filter(s => s.status === 'COMPLETED').length}/${subtasks.length} done`}
                     </SectionLabel>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                        {subtasks.map(sub => <SubtaskRow key={sub.id} subtask={sub} />)}
+                        {subtasks.map(sub => (
+                            <SubtaskRow
+                                key={sub.id}
+                                subtask={sub}
+                                onClick={() => onSelectSubtask(sub)}
+                            />
+                        ))}
                     </div>
+                    <button onClick={onAddSubtask} style={addSubtaskButtonStyle}>
+                        + Add subtask
+                    </button>
                 </div>
             )}
 
@@ -945,10 +991,15 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
     )
 }
 
-function SubtaskRow({ subtask }: { subtask: Entry }) {
+function SubtaskRow({ subtask, onClick }: { subtask: Entry; onClick: () => void }) {
     const isDone = subtask.status === 'COMPLETED' || subtask.status === 'CANCELLED'
     return (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '5px 8px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-raised)' }}>
+        <div
+            onClick={onClick}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '5px 8px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-raised)', cursor: 'pointer' }}
+            onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = 'var(--bg-hover)' }}
+            onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = 'var(--bg-raised)' }}
+        >
             <div style={{
                 width: '13px', height: '13px', minWidth: '13px', borderRadius: '50%',
                 border: `1.5px solid ${isDone ? 'var(--text-muted)' : 'var(--border-strong)'}`,
@@ -974,6 +1025,17 @@ function formatTrigger(trigger: string): string {
 }
 
 // ── Style constants ───────────────────────────────────────────────────────────
+
+const addSubtaskButtonStyle: React.CSSProperties = {
+    marginTop:  '6px',
+    background: 'none',
+    border:     'none',
+    color:      'var(--text-muted)',
+    fontSize:   '11px',
+    cursor:     'pointer',
+    padding:    '3px 0',
+    textAlign:  'left',
+}
 
 const inputStyle: React.CSSProperties = {
     width:        '100%',

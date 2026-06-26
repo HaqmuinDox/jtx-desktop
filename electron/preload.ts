@@ -12,6 +12,8 @@ contextBridge.exposeInMainWorld('api', {
             ipcRenderer.invoke('entries:update', id, fields),
         delete:   (id: string) =>
             ipcRenderer.invoke('entries:delete', id),
+        touch:    (id: string) =>
+            ipcRenderer.invoke('entries:touch', id),
     },
     collections: {
         getAll:   () =>

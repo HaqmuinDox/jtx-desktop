@@ -129,7 +129,12 @@ async function syncCollection(col: Collection) {
 
     for (const entry of toPush) {
         try {
-            const icsData = serializeEntry(entry)
+            const childUids = entry.type === 'todo'
+                ? (db.prepare(
+                    'SELECT id FROM entries WHERE parent_uid = ? AND deleted = 0'
+                  ).all(entry.id) as { id: string }[]).map(r => r.id)
+                : []
+            const icsData = serializeEntry(entry, childUids)
             const newEtag = await pushObject(
                 credentials, col.url, entry.id, icsData, entry.etag
             )
