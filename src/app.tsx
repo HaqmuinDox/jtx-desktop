@@ -32,6 +32,7 @@ declare global {
                 setCredentials: (creds: Record<string, string>) => Promise<{ ok: boolean }>
                 testConnection: (creds: Record<string, string>) => Promise<{ ok: boolean; error?: string }>
                 resetCache:     () => Promise<{ ok: boolean }>
+                setInterval:     (minutes: number) => Promise<void>
             }
             credentials: {
                 save: (creds: Record<string, string>) => Promise<{ ok: boolean }>

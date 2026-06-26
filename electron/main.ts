@@ -5,6 +5,7 @@ import path from 'node:path'
 import { getDb, closeDb } from './db'
 import { registerIpcHandlers, loadCredentials } from './ipc'
 import { setCredentials, startSyncInterval, sync } from './sync/engine'
+import { CalDavCredentials } from "./sync/caldav.ts";
 
 
 createRequire(import.meta.url)
@@ -32,7 +33,7 @@ let win: BrowserWindow | null
 
 function createWindow() {
   win = new BrowserWindow({
-    icon: path.join(process.env.VITE_PUBLIC, 'electron-vite.svg'),
+    icon: path.join(process.env.VITE_PUBLIC, 'icon.ico'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.mjs'),
     },
@@ -145,10 +146,10 @@ app.whenReady().then(async () => {
     registerIpcHandlers()
     createWindow()
 
-    // Auto-load saved credentials and start sync
+    // Autoload saved credentials and start sync
     const savedCreds = loadCredentials()
     if (savedCreds) {
-        setCredentials(savedCreds)
+        setCredentials(savedCreds as unknown as CalDavCredentials)
         startSyncInterval()
     }
 })

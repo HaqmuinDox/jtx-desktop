@@ -21,13 +21,13 @@ export function SettingsView() {
     // Load saved credentials on mount and apply persisted sync interval
     useEffect(() => {
         const savedMinutes = parseInt(localStorage.getItem('jtx_sync_interval') ?? '5', 10)
-        window.api.sync.setInterval(savedMinutes)
+        window.api.sync.setInterval(savedMinutes).catch(console.error)
 
-        window.api.credentials.load().then(creds => {
-            if (creds) {
-                setServerUrl(creds.serverUrl)
-                setUsername(creds.username)
-                setPassword(creds.password)
+        window.api.credentials.load().then(credentials => {
+            if (credentials) {
+                setServerUrl(credentials.serverUrl)
+                setUsername(credentials.username)
+                setPassword(credentials.password)
             }
         })
     }, [])
@@ -214,7 +214,7 @@ export function SettingsView() {
                             onClick={() => {
                                 setSyncInterval(m)
                                 localStorage.setItem('jtx_sync_interval', String(m))
-                                window.api.sync.setInterval(m)
+                                window.api.sync.setInterval(m).catch(console.error)
                             }}
                             style={{
                                 padding: '8px 14px',
