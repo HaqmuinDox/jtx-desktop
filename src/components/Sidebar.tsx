@@ -52,6 +52,7 @@ export function Sidebar() {
                         <button
                             key={section}
                             onClick={() => setActiveSection(section)}
+                            aria-current={isActive ? 'page' : undefined}
                             style={{
                                 width:          '100%',
                                 display:        'flex',
@@ -74,7 +75,7 @@ export function Sidebar() {
                                     : '2px solid transparent',
                             }}
                         >
-              <span style={{ fontSize: '14px', opacity: isActive ? 1 : 0.6 }}>
+              <span aria-hidden="true" style={{ fontSize: '14px', opacity: isActive ? 1 : 0.6 }}>
                 {icon}
               </span>
                             {label}
@@ -92,6 +93,8 @@ export function Sidebar() {
                 }} />
                 <button
                     onClick={() => setActiveSection('settings')}
+                    aria-current={activeSection === 'settings' ? 'page' : undefined}
+                    aria-label="Settings"
                     style={{
                         width:        '100%',
                         display:      'flex',
@@ -112,7 +115,7 @@ export function Sidebar() {
                             : '2px solid transparent',
                     }}
                 >
-                    <span style={{ fontSize: '14px', opacity: 0.6 }}>⚙</span>
+                    <span aria-hidden="true" style={{ fontSize: '14px', opacity: 0.6 }}>⚙</span>
                     Settings
                 </button>
             </div>

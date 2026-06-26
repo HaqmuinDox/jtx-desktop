@@ -64,7 +64,7 @@ export function SyncBar() {
             flexShrink:     0,
         }}>
             {/* Sync indicator dot */}
-            <div style={{
+            <div aria-hidden="true" style={{
                 width:        '6px',
                 height:       '6px',
                 borderRadius: '50%',
@@ -98,6 +98,7 @@ export function SyncBar() {
             <button
                 onClick={handleSyncNow}
                 disabled={isSyncing}
+                aria-label="Sync now"
                 style={{
                     background:    'transparent',
                     border:        '1px solid var(--border-strong)',

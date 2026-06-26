@@ -503,21 +503,21 @@ export function EntryDetail() {
                 <div style={{ display: 'flex', gap: '5px', flexShrink: 0 }}>
                     {isCreating ? (
                         <>
-                            <HeaderButton label={saving ? '…' : 'Create'} onClick={handleCreate} accent disabled={!selectedCollection || saving} />
-                            <HeaderButton label="Cancel" onClick={handleClose} />
+                            <HeaderButton label={saving ? '…' : 'Create'} onClick={handleCreate} accent disabled={!selectedCollection || saving} ariaLabel="Create entry" />
+                            <HeaderButton label="Cancel" onClick={handleClose} ariaLabel="Discard changes" />
                         </>
                     ) : isEditing ? (
                         <>
-                            <HeaderButton label={saving ? '…' : 'Save'} onClick={handleSave} accent />
-                            <HeaderButton label="Cancel" onClick={handleCancel} />
+                            <HeaderButton label={saving ? '…' : 'Save'} onClick={handleSave} accent ariaLabel="Save changes" />
+                            <HeaderButton label="Cancel" onClick={handleCancel} ariaLabel="Discard changes" />
                         </>
                     ) : (
                         <>
-                            <HeaderButton label="Edit" onClick={handleEdit} />
-                            <HeaderButton label="Delete" onClick={handleDelete} danger />
+                            <HeaderButton label="Edit" onClick={handleEdit} ariaLabel="Edit entry" />
+                            <HeaderButton label="Delete" onClick={handleDelete} danger ariaLabel="Delete entry" />
                         </>
                     )}
-                    <HeaderButton label="×" onClick={handleClose} />
+                    <HeaderButton label="×" onClick={handleClose} ariaLabel="Close" />
                 </div>
             </div>
 
@@ -1069,9 +1069,16 @@ function isPast(iso: string): boolean {
 
 // ── Small helpers ─────────────────────────────────────────────────────────────
 
-function HeaderButton({ label, onClick, accent = false, danger = false, disabled = false }: { label: string; onClick: () => void; accent?: boolean; danger?: boolean; disabled?: boolean }) {
+function HeaderButton({ label, onClick, accent = false, danger = false, disabled = false, ariaLabel }: {
+    label:      string
+    onClick:    () => void
+    accent?:    boolean
+    danger?:    boolean
+    disabled?:  boolean
+    ariaLabel?: string
+}) {
     return (
-        <button onClick={onClick} disabled={disabled} style={{
+        <button onClick={onClick} disabled={disabled} aria-label={ariaLabel} style={{
             background:   accent ? 'rgba(196,163,90,0.15)' : 'transparent',
             border:       accent ? '1px solid var(--accent-dim)' : 'none',
             borderRadius: 'var(--radius-sm)',
