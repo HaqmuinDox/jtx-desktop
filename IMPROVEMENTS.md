@@ -34,7 +34,7 @@ Items are grouped by priority. Agents assigned in parentheses where applicable.
 - [x] **Placeholder text in editor** — "Start writing…" via Tiptap Placeholder extension *(Agent 1)*
 - [x] **Journal "Untitled" fallback** — 3-tier fallback in both journals and notes: title → first body line (italic) → "Untitled" (muted italic) *(Agent 4)*
 - [x] **Resizable panels** — Detail panel is drag-resizable (300–700px); width persisted to localStorage. Sidebar width is intentionally fixed.
-- [ ] **Collections in sidebar** — Nextcloud collections not visible in navigation
+- [x] **Collections in sidebar** — Nextcloud collections listed in sidebar with color dot and display name; cached in localStorage for instant startup display
 - [x] **About / version info** — About section at the bottom of Settings; shows app name, version (from package.json), and author
 - [ ] **Autosave + inline editing** — Hard Edit/Save/Cancel cycle; professional apps autosave
 - [ ] **Custom window titlebar** — Electron default titlebar breaks visual unity on Windows

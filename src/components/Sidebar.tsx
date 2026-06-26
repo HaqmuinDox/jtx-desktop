@@ -1,4 +1,11 @@
+import { useState, useEffect } from 'react'
 import { useAppStore, type Section } from '../store/app.ts'
+
+interface Collection {
+    url:          string
+    display_name: string | null
+    color:        string | null
+}
 
 const NAV_ITEMS: { section: Section; label: string; icon: string }[] = [
     { section: 'journals', label: 'Journals', icon: '📖' },
@@ -12,6 +19,18 @@ export function Sidebar() {
         searchQuery, setSearchQuery,
         sidebarCollapsed, setSidebarCollapsed,
     } = useAppStore()
+
+    const [collections, setCollections] = useState<Collection[]>(() => {
+        try { return JSON.parse(localStorage.getItem('jtx_collections') ?? '[]') } catch { return [] }
+    })
+
+    useEffect(() => {
+        window.api.collections.getAll().then(cols => {
+            const typed = cols as Collection[]
+            setCollections(typed)
+            localStorage.setItem('jtx_collections', JSON.stringify(typed))
+        })
+    }, [])
 
     return (
         <aside style={{
@@ -139,6 +158,50 @@ export function Sidebar() {
                     )
                 })}
             </nav>
+
+            {/* Collections */}
+            {!sidebarCollapsed && collections.length > 0 && (
+                <div style={{ padding: '0 8px', marginBottom: '4px' }}>
+                    <div style={{
+                        fontSize:      '10px',
+                        color:         'var(--text-muted)',
+                        letterSpacing: '0.08em',
+                        textTransform: 'uppercase',
+                        padding:       '0 4px',
+                        marginBottom:  '4px',
+                    }}>
+                        Collections
+                    </div>
+                    {collections.map(c => (
+                        <div
+                            key={c.url}
+                            title={c.url}
+                            style={{
+                                display:      'flex',
+                                alignItems:   'center',
+                                gap:          '7px',
+                                padding:      '5px 12px',
+                                borderRadius: 'var(--radius-sm)',
+                                fontSize:     '12px',
+                                color:        'var(--text-secondary)',
+                                overflow:     'hidden',
+                            }}
+                        >
+                            <span style={{
+                                width:        '7px',
+                                height:       '7px',
+                                minWidth:     '7px',
+                                borderRadius: '50%',
+                                background:   c.color ?? 'var(--accent)',
+                                opacity:      0.8,
+                            }} />
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {c.display_name ?? c.url}
+                            </span>
+                        </div>
+                    ))}
+                </div>
+            )}
 
             {/* Settings at bottom */}
             <div style={{ padding: '0 8px' }}>
