@@ -36,7 +36,30 @@ interface AppState {
 
     deviceLocation:    DeviceLocation | null
     setDeviceLocation: (loc: DeviceLocation | null) => void
+
+    theme:    'dark' | 'light' | 'system'
+    setTheme: (t: 'dark' | 'light' | 'system') => void
+    fontSize: 'sm' | 'md' | 'lg' | 'xl'
+    setFontSize: (s: 'sm' | 'md' | 'lg' | 'xl') => void
 }
+
+// Read persisted theme/fontSize before create() call
+const savedTheme = (localStorage.getItem('jtx_theme') as 'dark' | 'light' | 'system' | null) ?? 'dark'
+const savedFontSize = (localStorage.getItem('jtx_fontsize') as 'sm' | 'md' | 'lg' | 'xl' | null) ?? 'md'
+
+// Apply on startup
+function applyTheme(t: 'dark' | 'light' | 'system') {
+    const resolved = t === 'system'
+        ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+        : t
+    document.documentElement.setAttribute('data-theme', resolved)
+}
+function applyFontSize(s: 'sm' | 'md' | 'lg' | 'xl') {
+    const sizes = { sm: '12px', md: '14px', lg: '16px', xl: '18px' }
+    document.documentElement.style.fontSize = sizes[s]
+}
+applyTheme(savedTheme)
+applyFontSize(savedFontSize)
 
 export const useAppStore = create<AppState>((set) => ({
     activeSection:    'journals',
@@ -65,4 +88,17 @@ export const useAppStore = create<AppState>((set) => ({
 
     deviceLocation:    null,
     setDeviceLocation: (deviceLocation) => set({ deviceLocation }),
+
+    theme: savedTheme,
+    setTheme: (theme) => {
+        localStorage.setItem('jtx_theme', theme)
+        applyTheme(theme)
+        set({ theme })
+    },
+    fontSize: savedFontSize,
+    setFontSize: (fontSize) => {
+        localStorage.setItem('jtx_fontsize', fontSize)
+        applyFontSize(fontSize)
+        set({ fontSize })
+    },
 }))

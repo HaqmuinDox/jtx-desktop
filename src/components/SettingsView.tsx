@@ -4,7 +4,7 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
 export function SettingsView() {
-    const { setEntries, setLastSynced, setIsSyncing, setDeviceLocation } = useAppStore()
+    const { setEntries, setLastSynced, setIsSyncing, setDeviceLocation, theme, setTheme, fontSize, setFontSize } = useAppStore()
     const [serverUrl, setServerUrl] = useState('')
     const [username,  setUsername]  = useState('')
     const [password,  setPassword]  = useState('')
@@ -89,23 +89,70 @@ export function SettingsView() {
             overflowY:  'auto',
             padding:    '40px 48px',
         }}>
-            {/* Header */}
-            <h1 style={{
-                fontFamily:   'var(--font-display)',
-                fontSize:     '28px',
-                fontWeight:   400,
-                color:        'var(--text-primary)',
-                marginBottom: '8px',
-            }}>
-                Settings
-            </h1>
-            <p style={{
-                color:        'var(--text-muted)',
-                fontSize:     '13px',
-                marginBottom: '40px',
-            }}>
-                Connect to your Nextcloud server to sync with jtx Board
-            </p>
+            {/* Appearance section */}
+            <div style={{ maxWidth: '480px', marginBottom: '40px' }}>
+                <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '18px', fontWeight: 400, color: 'var(--text-primary)', marginBottom: '24px' }}>
+                    Appearance
+                </h2>
+
+                {/* Theme */}
+                <div style={{ marginBottom: '24px' }}>
+                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)', letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: '10px' }}>
+                        Theme
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                        {(['dark', 'light', 'system'] as const).map(t => (
+                            <button
+                                key={t}
+                                onClick={() => setTheme(t)}
+                                style={{
+                                    flex: 1, padding: '10px 0',
+                                    background: theme === t ? 'rgba(196,163,90,0.15)' : 'var(--bg-raised)',
+                                    border: `1px solid ${theme === t ? 'var(--accent-dim)' : 'var(--border-strong)'}`,
+                                    borderRadius: 'var(--radius-md)',
+                                    color: theme === t ? 'var(--accent)' : 'var(--text-secondary)',
+                                    fontFamily: 'var(--font-ui)', fontSize: '13px', cursor: 'pointer',
+                                    transition: 'background 0.15s, border-color 0.15s, color 0.15s',
+                                }}
+                            >
+                                {t === 'dark' ? '🌙 Dark' : t === 'light' ? '☀️ Light' : '⚙ System'}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Font size */}
+                <div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)', letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: '10px' }}>
+                        Font size
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                        {([['sm', 'Small'], ['md', 'Medium'], ['lg', 'Large'], ['xl', 'X-Large']] as const).map(([s, label]) => (
+                            <button
+                                key={s}
+                                onClick={() => setFontSize(s)}
+                                style={{
+                                    flex: 1, padding: '10px 0',
+                                    background: fontSize === s ? 'rgba(196,163,90,0.15)' : 'var(--bg-raised)',
+                                    border: `1px solid ${fontSize === s ? 'var(--accent-dim)' : 'var(--border-strong)'}`,
+                                    borderRadius: 'var(--radius-md)',
+                                    color: fontSize === s ? 'var(--accent)' : 'var(--text-secondary)',
+                                    fontFamily: 'var(--font-ui)', fontSize: '13px', cursor: 'pointer',
+                                    transition: 'background 0.15s, border-color 0.15s, color 0.15s',
+                                }}
+                            >
+                                {label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            <div style={{ borderTop: '1px solid var(--border)', paddingTop: '40px', marginBottom: '8px' }}>
+                <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '18px', fontWeight: 400, color: 'var(--text-primary)', marginBottom: '24px' }}>
+                    Nextcloud Sync
+                </h2>
+            </div>
 
             {/* Form */}
             <div style={{
