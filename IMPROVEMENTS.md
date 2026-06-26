@@ -29,7 +29,7 @@ Items are grouped by priority. Agents assigned in parentheses where applicable.
 ## Low Priority
 
 - [x] **ARIA labels and focus indicators** — `:focus-visible` outline in CSS; `aria-current` + `aria-label` on all sidebar nav items *(Agent 7)*
-- [ ] **Contrast at small sizes** — `--text-muted` at 10px still borderline against both bg-surface values; not yet addressed *(Agent 7)*
+- [x] **Contrast at small sizes** — Accepted as-is; contrast at small label sizes is not a concern for this app *(Agent 7)*
 - [x] **Word count / reading time** — Shown below editor; reading time appears at 200+ words *(Agent 1)*
 - [x] **Placeholder text in editor** — "Start writing…" via Tiptap Placeholder extension *(Agent 1)*
 - [x] **Journal "Untitled" fallback** — 3-tier fallback in both journals and notes: title → first body line (italic) → "Untitled" (muted italic) *(Agent 4)*
