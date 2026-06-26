@@ -29,10 +29,25 @@ const STATUS_GROUPS = [
     { status: 'CANCELLED',    label: 'Cancelled',   color: '#605850' },
 ]
 
-type PriorityFilter = 'all' | 'high' | 'medium' | 'low' | 'none'
+type PriorityKey = '1'|'2'|'3'|'4'|'5'|'6'|'7'|'8'|'9'|'none'
+type DateOp = '=' | '<=' | '>='
+
 const ALL_STATUSES = STATUS_GROUPS.map(g => g.status)
 
-const btnBase = {
+const PRIORITY_GROUPS = [
+    { label: 'High', keys: ['1','2','3'] as PriorityKey[], color: '#c04040' },
+    { label: 'Med',  keys: ['4','5','6'] as PriorityKey[], color: '#c08040' },
+    { label: 'Low',  keys: ['7','8','9'] as PriorityKey[], color: 'var(--text-muted)' },
+]
+
+function priorityColor(key: PriorityKey): string {
+    const n = Number(key)
+    if (n >= 1 && n <= 3) return '#c04040'
+    if (n >= 4 && n <= 6) return '#c08040'
+    return 'var(--text-muted)'
+}
+
+const btnBase: React.CSSProperties = {
     background:   'transparent',
     border:       '1px solid var(--border)',
     borderRadius: 'var(--radius-sm)',
@@ -42,7 +57,7 @@ const btnBase = {
     padding:      '2px 8px',
     cursor:       'pointer',
 }
-const btnActive = {
+const btnActive: React.CSSProperties = {
     background: 'var(--accent-glow)',
     border:     '1px solid var(--accent-dim)',
     color:      'var(--accent)',
@@ -58,9 +73,26 @@ export function TodosView() {
         () => localStorage.getItem('jtx_todos_sort_asc') !== 'false'
     )
     const [showFilters, setShowFilters] = useState(false)
-    const [filterPriority, setFilterPriority] = useState<PriorityFilter>(
-        () => (localStorage.getItem('jtx_todos_filter_priority') as PriorityFilter | null) ?? 'all'
-    )
+
+    const [filterPriorities, setFilterPriorities] = useState<Set<PriorityKey>>(() => {
+        try {
+            const saved = localStorage.getItem('jtx_todos_filter_priorities')
+            if (saved) return new Set(JSON.parse(saved) as PriorityKey[])
+        } catch { /* empty */ }
+        // migrate from old single-value filter
+        const old = localStorage.getItem('jtx_todos_filter_priority')
+        if (old && old !== 'all') {
+            const map: Record<string, PriorityKey[]> = {
+                high:   ['1','2','3'],
+                medium: ['4','5','6'],
+                low:    ['7','8','9'],
+                none:   ['none'],
+            }
+            return new Set(map[old] ?? [])
+        }
+        return new Set()
+    })
+
     const [filterTags, setFilterTags] = useState<string[]>(() => {
         try { return JSON.parse(localStorage.getItem('jtx_todos_filter_tags') ?? '[]') } catch { return [] }
     })
@@ -69,10 +101,22 @@ export function TodosView() {
             const saved = localStorage.getItem('jtx_todos_filter_statuses')
             if (saved) return JSON.parse(saved)
         } catch { /* empty */ }
-        // backwards compat: respect old showCompleted pref
         const showDone = localStorage.getItem('jtx_todos_show_completed') !== 'false'
         return showDone ? ALL_STATUSES : ['NEEDS-ACTION', 'IN-PROCESS']
     })
+
+    const [filterDueOp, setFilterDueOp] = useState<DateOp>(
+        () => (localStorage.getItem('jtx_todos_filter_due_op') as DateOp | null) ?? '<='
+    )
+    const [filterDueDate, setFilterDueDate] = useState<string>(
+        () => localStorage.getItem('jtx_todos_filter_due_date') ?? ''
+    )
+    const [filterStartOp, setFilterStartOp] = useState<DateOp>(
+        () => (localStorage.getItem('jtx_todos_filter_start_op') as DateOp | null) ?? '<='
+    )
+    const [filterStartDate, setFilterStartDate] = useState<string>(
+        () => localStorage.getItem('jtx_todos_filter_start_date') ?? ''
+    )
 
     const todos = entries
         .filter(e => e.type === 'todo' && !e.parent_uid)
@@ -111,9 +155,11 @@ export function TodosView() {
     }, [entries])
 
     const activeFilterCount =
-        (filterPriority !== 'all' ? 1 : 0) +
+        (filterPriorities.size > 0 ? 1 : 0) +
         filterTags.length +
-        (filterStatuses.length < ALL_STATUSES.length ? 1 : 0)
+        (filterStatuses.length < ALL_STATUSES.length ? 1 : 0) +
+        (filterDueDate ? 1 : 0) +
+        (filterStartDate ? 1 : 0)
 
     const filteredTodos = todos.filter(e => {
         if (searchQuery) {
@@ -125,14 +171,26 @@ export function TodosView() {
             ) return false
         }
         if (!filterStatuses.includes(e.status ?? 'NEEDS-ACTION')) return false
-        if (filterPriority === 'none') {
-            if (e.priority !== null && e.priority !== undefined) return false
-        } else if (filterPriority === 'high') {
-            const p = e.priority ?? 0; if (p < 1 || p > 3) return false
-        } else if (filterPriority === 'medium') {
-            const p = e.priority ?? 0; if (p < 4 || p > 6) return false
-        } else if (filterPriority === 'low') {
-            const p = e.priority ?? 0; if (p < 7 || p > 9) return false
+        if (filterPriorities.size > 0) {
+            const key: PriorityKey =
+                e.priority === null || e.priority === undefined || e.priority === 0
+                    ? 'none'
+                    : String(e.priority) as PriorityKey
+            if (!filterPriorities.has(key)) return false
+        }
+        if (filterDueDate) {
+            if (!e.due_date) return false
+            const d = e.due_date.slice(0, 10)
+            if (filterDueOp === '='  && d !== filterDueDate) return false
+            if (filterDueOp === '<=' && d >  filterDueDate)  return false
+            if (filterDueOp === '>=' && d <  filterDueDate)  return false
+        }
+        if (filterStartDate) {
+            if (!e.start_date) return false
+            const d = e.start_date.slice(0, 10)
+            if (filterStartOp === '='  && d !== filterStartDate) return false
+            if (filterStartOp === '<=' && d >  filterStartDate)  return false
+            if (filterStartOp === '>=' && d <  filterStartDate)  return false
         }
         if (filterTags.length > 0) {
             try {
@@ -147,13 +205,40 @@ export function TodosView() {
         localStorage.setItem('jtx_todos_filter_statuses', JSON.stringify(next))
         setFilterStatuses(next)
     }
-    const persistPriority = (p: PriorityFilter) => {
-        localStorage.setItem('jtx_todos_filter_priority', p)
-        setFilterPriority(p)
+    const persistPriorities = (next: Set<PriorityKey>) => {
+        localStorage.setItem('jtx_todos_filter_priorities', JSON.stringify([...next]))
+        setFilterPriorities(new Set(next))
     }
     const persistTags = (tags: string[]) => {
         localStorage.setItem('jtx_todos_filter_tags', JSON.stringify(tags))
         setFilterTags(tags)
+    }
+    const persistDue = (op: DateOp, date: string) => {
+        localStorage.setItem('jtx_todos_filter_due_op',   op)
+        localStorage.setItem('jtx_todos_filter_due_date', date)
+        setFilterDueOp(op)
+        setFilterDueDate(date)
+    }
+    const persistStart = (op: DateOp, date: string) => {
+        localStorage.setItem('jtx_todos_filter_start_op',   op)
+        localStorage.setItem('jtx_todos_filter_start_date', date)
+        setFilterStartOp(op)
+        setFilterStartDate(date)
+    }
+
+    const togglePriority = (key: PriorityKey) => {
+        const next = new Set(filterPriorities)
+        if (next.has(key)) next.delete(key)
+        else next.add(key)
+        persistPriorities(next)
+    }
+
+    const togglePriorityGroup = (keys: PriorityKey[]) => {
+        const allActive = keys.every(k => filterPriorities.has(k))
+        const next = new Set(filterPriorities)
+        if (allActive) keys.forEach(k => next.delete(k))
+        else           keys.forEach(k => next.add(k))
+        persistPriorities(next)
     }
 
     if (todos.length === 0) {
@@ -254,18 +339,15 @@ export function TodosView() {
                     display:      'flex',
                     gap:          '20px',
                     flexWrap:     'wrap',
-                    alignItems:   'flex-end',
+                    alignItems:   'flex-start',
                     marginBottom: '24px',
-                    padding:      '12px 16px',
+                    padding:      '14px 16px',
                     background:   'var(--bg-surface)',
                     borderRadius: 'var(--radius-md)',
                     border:       '1px solid var(--border)',
                 }}>
                     {/* Status */}
-                    <div>
-                        <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px' }}>
-                            Status
-                        </div>
+                    <FilterSection label="Status">
                         <div style={{ display: 'flex', gap: '4px' }}>
                             {STATUS_GROUPS.map(({ status, label }) => {
                                 const active = filterStatuses.includes(status)
@@ -284,32 +366,89 @@ export function TodosView() {
                                 )
                             })}
                         </div>
-                    </div>
+                    </FilterSection>
 
                     {/* Priority */}
-                    <div>
-                        <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px' }}>
-                            Priority
-                        </div>
-                        <div style={{ display: 'flex', gap: '4px' }}>
-                            {(['all', 'high', 'medium', 'low', 'none'] as PriorityFilter[]).map(p => (
+                    <FilterSection label="Priority">
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                            {/* Group shortcuts row */}
+                            <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
                                 <button
-                                    key={p}
-                                    onClick={() => persistPriority(p)}
-                                    style={{ ...btnBase, ...(filterPriority === p ? btnActive : {}), textTransform: 'capitalize' }}
+                                    onClick={() => persistPriorities(new Set())}
+                                    style={{ ...btnBase, ...(filterPriorities.size === 0 ? btnActive : {}) }}
                                 >
-                                    {p}
+                                    All
                                 </button>
-                            ))}
+                                {PRIORITY_GROUPS.map(({ label, keys, color }) => {
+                                    const allOn  = keys.every(k => filterPriorities.has(k))
+                                    const someOn = keys.some(k  => filterPriorities.has(k))
+                                    return (
+                                        <button
+                                            key={label}
+                                            onClick={() => togglePriorityGroup(keys)}
+                                            style={{
+                                                ...btnBase,
+                                                ...(allOn  ? { background: 'var(--accent-glow)', border: `1px solid ${color}55`, color } : {}),
+                                                ...(someOn && !allOn ? { border: `1px solid ${color}44` } : {}),
+                                            }}
+                                        >
+                                            {label}
+                                        </button>
+                                    )
+                                })}
+                                <button
+                                    onClick={() => togglePriority('none')}
+                                    title="No priority set"
+                                    style={{ ...btnBase, ...(filterPriorities.has('none') ? btnActive : {}) }}
+                                >
+                                    —
+                                </button>
+                            </div>
+                            {/* Individual number chips */}
+                            <div style={{ display: 'flex', gap: '3px' }}>
+                                {(['1','2','3','4','5','6','7','8','9'] as PriorityKey[]).map((k, i) => {
+                                    const active = filterPriorities.has(k)
+                                    const col    = priorityColor(k)
+                                    return (
+                                        <button
+                                            key={k}
+                                            onClick={() => togglePriority(k)}
+                                            style={{
+                                                ...btnBase,
+                                                padding:     '2px 6px',
+                                                marginRight: i === 2 || i === 5 ? '4px' : 0,
+                                                ...(active ? { background: 'var(--accent-glow)', border: `1px solid ${col}66`, color: col } : {}),
+                                            }}
+                                        >
+                                            {k}
+                                        </button>
+                                    )
+                                })}
+                            </div>
                         </div>
-                    </div>
+                    </FilterSection>
+
+                    {/* Due date */}
+                    <FilterSection label="Due Date">
+                        <DateFilter
+                            op={filterDueOp}
+                            date={filterDueDate}
+                            onChange={persistDue}
+                        />
+                    </FilterSection>
+
+                    {/* Start date */}
+                    <FilterSection label="Start Date">
+                        <DateFilter
+                            op={filterStartOp}
+                            date={filterStartDate}
+                            onChange={persistStart}
+                        />
+                    </FilterSection>
 
                     {/* Tags */}
                     {allTags.length > 0 && (
-                        <div style={{ flex: 1, minWidth: '120px' }}>
-                            <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '6px' }}>
-                                Tags
-                            </div>
+                        <FilterSection label="Tags">
                             <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
                                 {allTags.map(tag => {
                                     const active = filterTags.includes(tag)
@@ -328,25 +467,28 @@ export function TodosView() {
                                     )
                                 })}
                             </div>
-                        </div>
+                        </FilterSection>
                     )}
 
                     {/* Clear all */}
                     {activeFilterCount > 0 && (
                         <button
                             onClick={() => {
-                                persistPriority('all')
+                                persistPriorities(new Set())
                                 persistTags([])
                                 persistStatuses(ALL_STATUSES)
+                                persistDue('<=', '')
+                                persistStart('<=', '')
                             }}
                             style={{
-                                background:    'transparent',
-                                border:        'none',
-                                color:         'var(--text-muted)',
-                                fontSize:      '11px',
-                                fontFamily:    'var(--font-ui)',
-                                cursor:        'pointer',
-                                paddingBottom: '2px',
+                                background: 'transparent',
+                                border:     'none',
+                                color:      'var(--text-muted)',
+                                fontSize:   '11px',
+                                fontFamily: 'var(--font-ui)',
+                                cursor:     'pointer',
+                                alignSelf:  'flex-end',
+                                padding:    '0 0 2px',
                             }}
                         >
                             Clear all
@@ -403,13 +545,92 @@ export function TodosView() {
     )
 }
 
+function FilterSection({ label, children }: { label: string; children: React.ReactNode }) {
+    return (
+        <div>
+            <div style={{
+                fontSize:      '10px',
+                color:         'var(--text-muted)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.08em',
+                marginBottom:  '6px',
+            }}>
+                {label}
+            </div>
+            {children}
+        </div>
+    )
+}
+
+function DateFilter({ op, date, onChange }: {
+    op:       DateOp
+    date:     string
+    onChange: (op: DateOp, date: string) => void
+}) {
+    const ops: { value: DateOp; label: string }[] = [
+        { value: '<=', label: '≤' },
+        { value: '>=', label: '≥' },
+        { value: '=',  label: '=' },
+    ]
+    return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            {ops.map(({ value, label }) => (
+                <button
+                    key={value}
+                    onClick={() => onChange(value, date)}
+                    style={{
+                        ...btnBase,
+                        padding: '2px 6px',
+                        ...(op === value && date ? btnActive : {}),
+                    }}
+                >
+                    {label}
+                </button>
+            ))}
+            <input
+                type="date"
+                value={date}
+                onChange={e => onChange(op, e.target.value)}
+                style={{
+                    background:  'var(--bg-raised)',
+                    border:      '1px solid var(--border)',
+                    borderRadius:'var(--radius-sm)',
+                    color:       date ? 'var(--text-primary)' : 'var(--text-muted)',
+                    fontSize:    '11px',
+                    fontFamily:  'var(--font-ui)',
+                    padding:     '2px 6px',
+                    cursor:      'pointer',
+                    colorScheme: 'dark',
+                } as React.CSSProperties}
+            />
+            {date && (
+                <button
+                    onClick={() => onChange(op, '')}
+                    title="Clear"
+                    style={{
+                        background: 'transparent',
+                        border:     'none',
+                        color:      'var(--text-muted)',
+                        fontSize:   '14px',
+                        cursor:     'pointer',
+                        padding:    '0 2px',
+                        lineHeight: 1,
+                    }}
+                >
+                    ×
+                </button>
+            )}
+        </div>
+    )
+}
+
 function TodoRow({
-                     entry, isSelected, onClick, subtasks
-                 }: {
-    entry:     Entry
-    isSelected:boolean
-    onClick:   () => void
-    subtasks:  Entry[]
+    entry, isSelected, onClick, subtasks
+}: {
+    entry:      Entry
+    isSelected: boolean
+    onClick:    () => void
+    subtasks:   Entry[]
 }) {
     const { setEntries } = useAppStore()
     const tags: string[] = (() => { try { return entry.categories ? JSON.parse(entry.categories) : [] } catch { return [] } })()
@@ -438,18 +659,18 @@ function TodoRow({
         <div
             onClick={onClick}
             style={{
-                display:      'flex',
-                alignItems:   'flex-start',
-                gap:          '12px',
-                padding:      '10px 14px',
+                display:    'flex',
+                alignItems: 'flex-start',
+                gap:        '12px',
+                padding:    '10px 14px',
                 borderRadius: 'var(--radius-md)',
                 background:   isSelected ? 'var(--bg-active)' : 'transparent',
                 borderLeft:   isSelected
                     ? '2px solid var(--accent)'
                     : '2px solid transparent',
-                cursor:       'pointer',
-                transition:   'background 0.12s',
-                opacity:      isDone ? 0.5 : 1,
+                cursor:     'pointer',
+                transition: 'background 0.12s',
+                opacity:    isDone ? 0.5 : 1,
             }}
             onMouseEnter={e => {
                 if (!isSelected)
@@ -491,22 +712,22 @@ function TodoRow({
             {/* Content */}
             <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{
-                    display:    'flex',
-                    alignItems: 'center',
-                    gap:        '8px',
+                    display:      'flex',
+                    alignItems:   'center',
+                    gap:          '8px',
                     marginBottom: subtasks.length > 0 || tags.length > 0 ? '4px' : 0,
                 }}>
-          <span style={{
-              fontSize:        '14px',
-              color:           'var(--text-primary)',
-              fontWeight:      500,
-              textDecoration:  isDone ? 'line-through' : 'none',
-              flex:            1,
-          }}
-                className="truncate"
-          >
-            {entry.title || 'Untitled'}
-          </span>
+                    <span style={{
+                        fontSize:       '14px',
+                        color:          'var(--text-primary)',
+                        fontWeight:     500,
+                        textDecoration: isDone ? 'line-through' : 'none',
+                        flex:           1,
+                    }}
+                        className="truncate"
+                    >
+                        {entry.title || 'Untitled'}
+                    </span>
 
                     {/* Priority dot */}
                     {entry.priority && entry.priority <= 3 && !isDone && (
@@ -519,7 +740,7 @@ function TodoRow({
                                 : entry.priority === 2
                                     ? '#c08040'
                                     : 'var(--accent)',
-                            flexShrink:   0,
+                            flexShrink: 0,
                         }} />
                     )}
 
@@ -530,8 +751,8 @@ function TodoRow({
                             color:     isOverdue ? '#e07070' : 'var(--text-muted)',
                             flexShrink: 0,
                         }}>
-              {dueDate}
-            </span>
+                            {dueDate}
+                        </span>
                     )}
                 </div>
 
@@ -547,9 +768,9 @@ function TodoRow({
                             overflow:     'hidden',
                         }}>
                             <div style={{
-                                height:     '100%',
-                                width:      `${pct}%`,
-                                background: 'var(--accent)',
+                                height:       '100%',
+                                width:        `${pct}%`,
+                                background:   'var(--accent)',
                                 borderRadius: '1px',
                             }} />
                         </div>
@@ -559,12 +780,9 @@ function TodoRow({
                 {/* Subtasks count + tags */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                     {subtasks.length > 0 && (
-                        <span style={{
-                            fontSize: '11px',
-                            color:    'var(--text-muted)',
-                        }}>
-              {subtasks.filter(s => s.status === 'COMPLETED').length}/{subtasks.length} subtasks
-            </span>
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                            {subtasks.filter(s => s.status === 'COMPLETED').length}/{subtasks.length} subtasks
+                        </span>
                     )}
                     {tags.slice(0, 3).map((tag: string) => (
                         <span key={tag} style={{
@@ -574,8 +792,8 @@ function TodoRow({
                             borderRadius: 'var(--radius-sm)',
                             padding:      '1px 6px',
                         }}>
-              {tag}
-            </span>
+                            {tag}
+                        </span>
                     ))}
                 </div>
             </div>
