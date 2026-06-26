@@ -37,12 +37,13 @@ declare global {
                 save: (creds: Record<string, string>) => Promise<{ ok: boolean }>
                 load: () => Promise<{ serverUrl: string; username: string; password: string } | null>
             }
+            onMenuAction: (cb: (action: string) => void) => void
         }
     }
 }
 
 export default function App() {
-    const { activeSection, selectedEntry, creatingType, setEntries, setDeviceLocation } = useAppStore()
+    const { activeSection, selectedEntry, creatingType, setEntries, setDeviceLocation, setActiveSection, setCreatingType, setSelectedEntry } = useAppStore()
 
     // Load all entries on mount
     useEffect(() => {
@@ -58,6 +59,37 @@ export default function App() {
             if (loc.lat && loc.lon) setDeviceLocation({ lat: loc.lat, lon: loc.lon, name: loc.name ?? null })
         } catch { /* ignore */ }
     }, [setDeviceLocation])
+
+    // Native menu actions and global keyboard shortcuts
+    useEffect(() => {
+        // Native menu actions from main process
+        window.api.onMenuAction((action: string) => {
+            if (action === 'new-journal') { setActiveSection('journals'); setCreatingType('journal') }
+            if (action === 'new-note')    { setActiveSection('notes');    setCreatingType('note') }
+            if (action === 'new-task')    { setActiveSection('todos');    setCreatingType('todo') }
+            if (action === 'sync-now')    { window.api.sync.now() }
+        })
+
+        // Keyboard shortcuts
+        const onKey = (e: KeyboardEvent) => {
+            if (e.ctrlKey && e.key === '1') { e.preventDefault(); setActiveSection('journals') }
+            if (e.ctrlKey && e.key === '2') { e.preventDefault(); setActiveSection('notes') }
+            if (e.ctrlKey && e.key === '3') { e.preventDefault(); setActiveSection('todos') }
+            if (e.ctrlKey && e.key === 'n') {
+                e.preventDefault()
+                const section = useAppStore.getState().activeSection
+                if (section === 'journals') setCreatingType('journal')
+                else if (section === 'notes') setCreatingType('note')
+                else if (section === 'todos') setCreatingType('todo')
+            }
+            if (e.key === 'Escape') {
+                setSelectedEntry(null)
+                setCreatingType(null)
+            }
+        }
+        window.addEventListener('keydown', onKey)
+        return () => window.removeEventListener('keydown', onKey)
+    }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
     const mainContent = () => {
         switch (activeSection) {

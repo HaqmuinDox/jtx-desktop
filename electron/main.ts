@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, Menu, dialog } from 'electron'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
@@ -37,6 +37,78 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.mjs'),
     },
   })
+
+  const menu = Menu.buildFromTemplate([
+    {
+      label: 'File',
+      submenu: [
+        {
+          label: 'New Journal Entry',
+          accelerator: 'CmdOrCtrl+Shift+J',
+          click: () => win?.webContents.send('menu-action', 'new-journal'),
+        },
+        {
+          label: 'New Note',
+          accelerator: 'CmdOrCtrl+Shift+N',
+          click: () => win?.webContents.send('menu-action', 'new-note'),
+        },
+        {
+          label: 'New Task',
+          accelerator: 'CmdOrCtrl+Shift+T',
+          click: () => win?.webContents.send('menu-action', 'new-task'),
+        },
+        { type: 'separator' },
+        {
+          label: 'Quit',
+          accelerator: 'CmdOrCtrl+Q',
+          click: () => app.quit(),
+        },
+      ],
+    },
+    {
+      label: 'Edit',
+      submenu: [
+        { label: 'Undo', accelerator: 'CmdOrCtrl+Z', role: 'undo' },
+        { label: 'Redo', accelerator: 'CmdOrCtrl+Y', role: 'redo' },
+        { type: 'separator' },
+        { label: 'Cut', accelerator: 'CmdOrCtrl+X', role: 'cut' },
+        { label: 'Copy', accelerator: 'CmdOrCtrl+C', role: 'copy' },
+        { label: 'Paste', accelerator: 'CmdOrCtrl+V', role: 'paste' },
+        { label: 'Select All', accelerator: 'CmdOrCtrl+A', role: 'selectAll' },
+      ],
+    },
+    {
+      label: 'View',
+      submenu: [
+        {
+          label: 'Sync Now',
+          accelerator: 'CmdOrCtrl+Shift+S',
+          click: () => win?.webContents.send('menu-action', 'sync-now'),
+        },
+        { type: 'separator' },
+        { label: 'Reload', accelerator: 'CmdOrCtrl+R', role: 'reload' },
+        { label: 'Force Reload', accelerator: 'CmdOrCtrl+Shift+R', role: 'forceReload' },
+        { label: 'Toggle DevTools', accelerator: 'CmdOrCtrl+Shift+I', role: 'toggleDevTools' },
+      ],
+    },
+    {
+      label: 'Help',
+      submenu: [
+        {
+          label: 'About JTX Desktop',
+          click: () => {
+            dialog.showMessageBox({
+              type: 'info',
+              title: 'About JTX Desktop',
+              message: 'JTX Desktop',
+              detail: `Version ${app.getVersion()}\nA desktop companion for jtx Board.`,
+            })
+          },
+        },
+      ],
+    },
+  ])
+  Menu.setApplicationMenu(menu)
 
   if (VITE_DEV_SERVER_URL) {
     win.loadURL(VITE_DEV_SERVER_URL)

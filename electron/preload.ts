@@ -41,4 +41,7 @@ contextBridge.exposeInMainWorld('api', {
         load: () =>
             ipcRenderer.invoke('credentials:load'),
     },
+    onMenuAction: (cb: (action: string) => void) => {
+        ipcRenderer.on('menu-action', (_event, action: string) => cb(action))
+    },
 })
