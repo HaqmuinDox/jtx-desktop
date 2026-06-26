@@ -43,7 +43,7 @@ declare global {
 }
 
 export default function App() {
-    const { activeSection, selectedEntry, creatingType, setEntries, setDeviceLocation, setActiveSection, setCreatingType, setSelectedEntry } = useAppStore()
+    const { activeSection, selectedEntry, creatingType, setEntries, setDeviceLocation, setActiveSection, setCreatingType, setSelectedEntry, setIsSyncing, setLastSynced } = useAppStore()
 
     // Load all entries on mount
     useEffect(() => {
@@ -67,7 +67,16 @@ export default function App() {
             if (action === 'new-journal') { setActiveSection('journals'); setCreatingType('journal') }
             if (action === 'new-note')    { setActiveSection('notes');    setCreatingType('note') }
             if (action === 'new-task')    { setActiveSection('todos');    setCreatingType('todo') }
-            if (action === 'sync-now')    { window.api.sync.now() }
+            if (action === 'sync-now') {
+                setIsSyncing(true)
+                window.api.sync.now()
+                    .then(result => {
+                        if (result.last_synced_at) setLastSynced(result.last_synced_at)
+                        return window.api.entries.getAll()
+                    })
+                    .then(setEntries)
+                    .finally(() => setIsSyncing(false))
+            }
         })
 
         // Keyboard shortcuts
