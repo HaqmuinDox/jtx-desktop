@@ -36,14 +36,14 @@ Items are grouped by priority. Agents assigned in parentheses where applicable.
 - [x] **Resizable panels** — Detail panel is drag-resizable (300–700px); width persisted to localStorage. Sidebar width is intentionally fixed.
 - [x] **Collections in sidebar** — Nextcloud collections listed in sidebar with color dot and display name; cached in localStorage for instant startup display
 - [x] **About / version info** — About section at the bottom of Settings; shows app name, version (from package.json), and author
-- [ ] **Autosave + inline editing** — Hard Edit/Save/Cancel cycle; professional apps autosave
+- [ ] **Autosave + inline editing** — Hard Edit/Save/Cancel cycle; professional apps autosave *(moved to Not in scope — requires rearchitecting EntryDetail)*
 - [x] **Custom window titlebar** — Frameless window (`frame: false`); custom 32px TitleBar component with drag region, "JTX Desktop" label, and Win11-style min/max/close buttons; maximize state synced via IPC events
 
 ---
 
 ## Not in scope (this iteration)
 
-- Autosave / inline editing (requires rearchitecting EntryDetail)
-- Resizable panel drag handles (complex drag-to-resize logic)
-- Collections tree in sidebar (needs IPC handlers for `entry_links` table first)
-- Custom frameless titlebar (Windows-specific drag-region complexity)
+- [ ] Autosave / inline editing (requires rearchitecting EntryDetail)
+- [x] Resizable panel drag handles (complex drag-to-resize logic)
+- [x] Collections tree in sidebar (needs IPC handlers for `entry_links` table first)
+- [x] Custom frameless titlebar (Windows-specific drag-region complexity)

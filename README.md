@@ -374,6 +374,31 @@ npm run package   # packages with electron-builder into an installer
 - `src/components/SettingsView.tsx` — pre-fills form with saved credentials on mount via `useEffect`; calls `credentials:save` before syncing; `isSyncing` state wired to sync bar so it pulses during Save & Sync
 - Verified: credentials survive app restarts; auto-sync triggers on startup; sync bar reflects sync state from both Settings and the Sync Now button
 
+### ✅ Phase 7 — UI/UX improvements (complete)
+
+**High priority**
+- `src/components/Sidebar.tsx` + `src/components/SearchBar.tsx` — global full-text search across all entry types; Ctrl+F triggers sidebar search input
+- `electron/main.ts` + `src/components/KeyboardShortcuts.tsx` — Ctrl+N (new entry), Ctrl+1/2/3 (section switch), Escape (close panel); native Electron menu bar with File / Edit / View / Help menus
+- `src/components/editor/EntryEditor.tsx` — Tiptap bubble menu for Bold, Italic, H2, H3, Bullet and Ordered lists; word count and reading time displayed below editor; "Start writing…" placeholder via Tiptap Placeholder extension
+- `src/components/TodosView.tsx` — inline task complete checkbox in list row; no detail panel required
+
+**Medium priority**
+- `src/components/SettingsView.tsx` + `src/index.css` — Dark / Light / System theme toggle (`data-theme` attribute + full CSS variable set); font size sm/md/lg/xl (CSS scale on `#root`); six accent color swatches + custom color picker (full RGB→HSL palette derivation); Appearance and Nextcloud Sync sections
+- `src/index.css` — removed Google Fonts `<link>`; falls back to Georgia / Segoe UI offline
+- `src/components/Sidebar.tsx` — hamburger toggle; collapses to icon-only rail with smooth animation
+- Sort controls — Journals: newest/oldest; Notes: last-updated / created / A→Z; Tasks: priority / due / A→Z / last-updated with asc/desc toggle; all persisted to localStorage
+- `src/components/NotesView.tsx` — grid and list-row layout toggle; persisted to localStorage
+- `src/components/TodosView.tsx` — multi-select status filter, priority chips (group + individual), due/start date range, tag filter; active count badge; configurable sync interval (5/10/15/30/60 min) in Settings
+
+**Low priority**
+- `src/index.css` — `:focus-visible` outline; `aria-current` + `aria-label` on all sidebar nav items
+- `src/components/editor/EntryEditor.tsx` — 3-tier title fallback: title → first body line (italic) → "Untitled" (muted italic)
+- `src/App.tsx` — detail panel drag-resizable (300–700 px); width persisted to localStorage
+- `src/components/Sidebar.tsx` — Nextcloud collections listed with color dot and display name; cached in localStorage for instant startup display
+- `src/components/SettingsView.tsx` — About section: app name, version (from package.json), author
+- `electron/main.ts` + `src/components/TitleBar.tsx` — frameless window (`frame: false`); 32 px TitleBar with drag region, "JTX Desktop" label, Win11-style min/max/close buttons; maximize state synced via IPC events
+- All emoji/Unicode icons replaced with `lucide-react` throughout sidebar and detail panel
+
 ---
 
 ## Key Dependencies
@@ -441,10 +466,10 @@ Before any release, verify the following manually using jtx Board on Android + N
 - [x] Editing an entry in jtx Board reflects in desktop app after sync
 - [x] Deleting in desktop app removes from jtx Board after sync
 - [x] Deleting in jtx Board removes from desktop app after sync
-- [ ] Subtasks created in desktop app show as subtasks in jtx Board
-- [ ] Tags/categories sync correctly in both directions
-- [ ] Linked entries (`RELATED-TO`) sync correctly in both directions
-- [ ] Recurring tasks behave consistently in both apps
+- [x] Subtasks created in desktop app show as subtasks in jtx Board
+- [x] Tags/categories sync correctly in both directions
+- [ ] General `RELATED-TO` links (non-parent) sync correctly in both directions (`entry_links` table exists but has no IPC handlers; links cannot be created or viewed from the desktop app yet)
+- [ ] Recurring tasks behave consistently in both apps (`RRULE` is stored and synced correctly; end-to-end behaviour with jtx Board not yet manually verified)
 
 ---
 
