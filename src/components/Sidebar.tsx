@@ -32,6 +32,24 @@ export function Sidebar() {
         })
     }, [])
 
+    const openEasing  = 'cubic-bezier(0.4, 0, 0.2, 1)'
+    const closeEasing = 'ease-in-out'
+    // Open: content fades in after sidebar is mostly open
+    // Close: content fades out in sync with the collapsing width (no blink, no empty sidebar)
+    const sidebarTransition = sidebarCollapsed
+        ? `width 0.28s ${closeEasing}`
+        : `width 0.25s ${openEasing}`
+    const contentTransition = sidebarCollapsed
+        ? `opacity 0.22s ${closeEasing}`
+        : `opacity 0.18s ease 0.14s`
+    const labelTransition = sidebarCollapsed
+        ? `opacity 0.22s ${closeEasing}, max-width 0.28s ${closeEasing}`
+        : `opacity 0.18s ease 0.14s, max-width 0.25s ${openEasing}`
+    // Animate padding-left and gap so icons don't jump to center instantly
+    const buttonTransition = sidebarCollapsed
+        ? `background 0.15s, color 0.15s, padding-left 0.28s ${closeEasing}, gap 0.28s ${closeEasing}`
+        : `background 0.15s, color 0.15s, padding-left 0.25s ${openEasing}, gap 0.25s ${openEasing}`
+
     return (
         <aside style={{
             width:         sidebarCollapsed ? '48px' : 'var(--sidebar-width)',
@@ -41,18 +59,20 @@ export function Sidebar() {
             flexDirection: 'column',
             padding:       '16px 0 12px',
             borderRight:   '1px solid var(--border)',
-            transition:    'width 0.2s ease',
+            transition:    sidebarTransition,
             overflow:      'hidden',
         }}>
             {/* Header: hamburger + app title */}
             <div style={{
-                display:        'flex',
-                alignItems:     'center',
-                gap:            '10px',
-                padding:        sidebarCollapsed ? '0 0 16px' : '0 16px 16px',
-                marginBottom:   '12px',
-                borderBottom:   '1px solid var(--border)',
-                justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
+                display:      'flex',
+                alignItems:   'center',
+                gap:          '10px',
+                padding:      sidebarCollapsed ? '0 0 16px 12px' : '0 16px 16px',
+                marginBottom: '12px',
+                borderBottom: '1px solid var(--border)',
+                transition:   sidebarCollapsed
+                    ? `padding-left 0.28s ${closeEasing}`
+                    : `padding-left 0.25s ${openEasing}`,
             }}>
                 <button
                     onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
@@ -71,37 +91,47 @@ export function Sidebar() {
                 >
                     ☰
                 </button>
-                {!sidebarCollapsed && (
-                    <div>
-                        <div style={{
-                            fontFamily: 'var(--font-display)',
-                            fontSize:   '20px',
-                            color:      'var(--text-primary)',
-                            lineHeight: 1.2,
-                        }}>
-                            jtx
-                        </div>
-                        <div style={{
-                            fontSize:      '11px',
-                            color:         'var(--text-muted)',
-                            marginTop:     '2px',
-                            letterSpacing: '0.05em',
-                            textTransform: 'uppercase',
-                        }}>
-                            desktop
-                        </div>
+                <div style={{
+                    opacity:       sidebarCollapsed ? 0 : 1,
+                    maxWidth:      sidebarCollapsed ? '0px' : '160px',
+                    overflow:      'hidden',
+                    transition:    labelTransition,
+                    whiteSpace:    'nowrap',
+                    pointerEvents: sidebarCollapsed ? 'none' : 'auto',
+                }}>
+                    <div style={{
+                        fontFamily: 'var(--font-display)',
+                        fontSize:   '20px',
+                        color:      'var(--text-primary)',
+                        lineHeight: 1.2,
+                    }}>
+                        jtx
                     </div>
-                )}
+                    <div style={{
+                        fontSize:      '11px',
+                        color:         'var(--text-muted)',
+                        marginTop:     '2px',
+                        letterSpacing: '0.05em',
+                        textTransform: 'uppercase',
+                    }}>
+                        desktop
+                    </div>
+                </div>
             </div>
 
             {/* Search input */}
-            {!sidebarCollapsed && (
+            <div style={{
+                opacity:       sidebarCollapsed ? 0 : 1,
+                transition:    contentTransition,
+                pointerEvents: sidebarCollapsed ? 'none' : 'auto',
+            }}>
                 <div style={{ padding: '0 12px 12px' }}>
                     <input
                         type="search"
                         placeholder="Search…"
                         value={searchQuery}
                         onChange={e => setSearchQuery(e.target.value)}
+                        tabIndex={sidebarCollapsed ? -1 : 0}
                         style={{
                             width:        '100%',
                             background:   'var(--bg-raised)',
@@ -116,7 +146,7 @@ export function Sidebar() {
                         }}
                     />
                 </div>
-            )}
+            </div>
 
             {/* Navigation */}
             <nav style={{ flex: 1, padding: '0 8px' }}>
@@ -128,24 +158,26 @@ export function Sidebar() {
                             onClick={() => setActiveSection(section)}
                             aria-current={isActive ? 'page' : undefined}
                             style={{
-                                width:          '100%',
-                                display:        'flex',
-                                alignItems:     'center',
-                                gap:            sidebarCollapsed ? 0 : '10px',
-                                justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
-                                padding:        sidebarCollapsed ? '9px 0' : '9px 12px',
-                                borderRadius:   'var(--radius-md)',
-                                border:         'none',
-                                background:     isActive ? 'var(--bg-active)' : 'transparent',
-                                color:          isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
-                                fontSize:       '13px',
-                                fontFamily:     'var(--font-ui)',
-                                fontWeight:     isActive ? 500 : 400,
-                                cursor:         'pointer',
-                                textAlign:      'left',
-                                marginBottom:   '2px',
-                                transition:     'background 0.15s, color 0.15s',
-                                borderLeft:     isActive
+                                width:         '100%',
+                                display:       'flex',
+                                alignItems:    'center',
+                                gap:           sidebarCollapsed ? 0 : '10px',
+                                paddingTop:    '9px',
+                                paddingBottom: '9px',
+                                paddingLeft:   sidebarCollapsed ? '7px' : '12px',
+                                paddingRight:  0,
+                                borderRadius:  'var(--radius-md)',
+                                border:        'none',
+                                background:    isActive ? 'var(--bg-active)' : 'transparent',
+                                color:         isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+                                fontSize:      '13px',
+                                fontFamily:    'var(--font-ui)',
+                                fontWeight:    isActive ? 500 : 400,
+                                cursor:        'pointer',
+                                textAlign:     'left',
+                                marginBottom:  '2px',
+                                transition:    buttonTransition,
+                                borderLeft:    isActive
                                     ? '2px solid var(--accent)'
                                     : '2px solid transparent',
                             }}
@@ -153,15 +185,29 @@ export function Sidebar() {
                             <span aria-hidden="true" style={{ fontSize: '14px', opacity: isActive ? 1 : 0.6 }}>
                                 {icon}
                             </span>
-                            {!sidebarCollapsed && label}
+                            <span style={{
+                                opacity:    sidebarCollapsed ? 0 : 1,
+                                maxWidth:   sidebarCollapsed ? '0px' : '160px',
+                                overflow:   'hidden',
+                                transition: labelTransition,
+                                whiteSpace: 'nowrap',
+                            }}>
+                                {label}
+                            </span>
                         </button>
                     )
                 })}
             </nav>
 
             {/* Collections */}
-            {!sidebarCollapsed && collections.length > 0 && (
-                <div style={{ padding: '0 8px', marginBottom: '4px' }}>
+            {collections.length > 0 && (
+                <div style={{
+                    opacity:       sidebarCollapsed ? 0 : 1,
+                    transition:    contentTransition,
+                    pointerEvents: sidebarCollapsed ? 'none' : 'auto',
+                    padding:       '0 8px',
+                    marginBottom:  '4px',
+                }}>
                     <div style={{
                         fontSize:      '10px',
                         color:         'var(--text-muted)',
@@ -215,28 +261,38 @@ export function Sidebar() {
                     aria-current={activeSection === 'settings' ? 'page' : undefined}
                     aria-label="Settings"
                     style={{
-                        width:          '100%',
-                        display:        'flex',
-                        alignItems:     'center',
-                        gap:            sidebarCollapsed ? 0 : '10px',
-                        justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
-                        padding:        sidebarCollapsed ? '9px 0' : '9px 12px',
-                        borderRadius:   'var(--radius-md)',
-                        border:         'none',
-                        background:     activeSection === 'settings' ? 'var(--bg-active)' : 'transparent',
-                        color:          activeSection === 'settings' ? 'var(--text-primary)' : 'var(--text-secondary)',
-                        fontSize:       '13px',
-                        fontFamily:     'var(--font-ui)',
-                        cursor:         'pointer',
-                        textAlign:      'left',
-                        transition:     'background 0.15s, color 0.15s',
-                        borderLeft:     activeSection === 'settings'
+                        width:         '100%',
+                        display:       'flex',
+                        alignItems:    'center',
+                        gap:           sidebarCollapsed ? 0 : '10px',
+                        paddingTop:    '9px',
+                        paddingBottom: '9px',
+                        paddingLeft:   sidebarCollapsed ? '7px' : '12px',
+                        paddingRight:  0,
+                        borderRadius:  'var(--radius-md)',
+                        border:        'none',
+                        background:    activeSection === 'settings' ? 'var(--bg-active)' : 'transparent',
+                        color:         activeSection === 'settings' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                        fontSize:      '13px',
+                        fontFamily:    'var(--font-ui)',
+                        cursor:        'pointer',
+                        textAlign:     'left',
+                        transition:    buttonTransition,
+                        borderLeft:    activeSection === 'settings'
                             ? '2px solid var(--accent)'
                             : '2px solid transparent',
                     }}
                 >
                     <span aria-hidden="true" style={{ fontSize: '14px', opacity: 0.6 }}>⚙</span>
-                    {!sidebarCollapsed && 'Settings'}
+                    <span style={{
+                        opacity:    sidebarCollapsed ? 0 : 1,
+                        maxWidth:   sidebarCollapsed ? '0px' : '160px',
+                        overflow:   'hidden',
+                        transition: labelTransition,
+                        whiteSpace: 'nowrap',
+                    }}>
+                        Settings
+                    </span>
                 </button>
             </div>
         </aside>
