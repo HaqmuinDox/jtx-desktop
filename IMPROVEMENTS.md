@@ -15,24 +15,24 @@ Items are grouped by priority. Agents assigned in parentheses where applicable.
 
 ## Medium Priority
 
-- [ ] **Light/dark/system theme** — Currently dark-only; needs Appearance settings *(Agent 5)*
-- [ ] **Font size setting** — No way to scale text up or down *(Agent 5)*
-- [ ] **Accent color setting** — Gold (#c4a35a) is hardcoded *(Agent 5)*
-- [ ] **Remove Google Fonts dependency** — Fails offline; use system font fallbacks *(Agent 5)*
+- [x] **Light/dark/system theme** — Dark/Light/System toggle in Settings; `data-theme` attribute + full CSS variable set for light mode; system mode follows `prefers-color-scheme` *(Agent 5)* ⚠️ needs manual test
+- [x] **Font size setting** — sm/md/lg/xl buttons in Settings; implemented via CSS scale transform on `#root` *(Agent 5)* ⚠️ needs manual test
+- [x] **Accent color setting** — Six swatches + custom color picker in Settings; full RGB→HSL palette derivation tints backgrounds, borders, and text *(Agent 5)* ⚠️ needs manual test
+- [x] **Remove Google Fonts dependency** — No `<link>` in `index.html`; fonts fall back to Georgia / Segoe UI offline *(Agent 5)*
 - [x] **Collapsible sidebar** — Hamburger toggle; sidebar collapses to icon-only rail *(Agent 6)*
-- [x] **Sort controls** — Tasks: priority / due date / A→Z / last-updated sort with asc/desc toggle; notes and journals still static *(Agents 2, 4)*
-- [ ] **Notes list/grid toggle** — Grid is the only layout option *(Agent 4)*
-- [ ] **Settings restructure** — Flat scrolling page; needs Appearance / Sync / Account sections *(Agent 5)*
-- [x] **Sync interval setting** — Configurable interval in Settings (default 5 min)
-- [x] **Filter controls for tasks** — Multi-select status, priority (group + individual chips), due/start date range, tag filter *(Agent 2)*
+- [x] **Sort controls** — Journals: newest/oldest. Notes: last-updated/created/A→Z. Tasks: priority/due/A→Z/last-updated with asc/desc toggle. All persisted to localStorage. *(Agents 2, 4)*
+- [x] **Notes list/grid toggle** — Grid and list-row layouts with toggle buttons; persisted to localStorage *(Agent 4)*
+- [x] **Settings restructure** — Appearance section (theme/accent/font) and Nextcloud Sync section with distinct headings *(Agent 5)*
+- [x] **Sync interval setting** — 5/10/15/30/60 min buttons in Settings; persisted and applied live
+- [x] **Filter controls for tasks** — Multi-select status, priority (group + individual chips), due/start date range, tag filter; active count badge *(Agent 2)*
 
 ## Low Priority
 
-- [ ] **ARIA labels and focus indicators** — Accessibility: aria-label, aria-current, focus-visible *(Agent 7)*
-- [ ] **Contrast at small sizes** — text-muted (#605850) on bg-surface (#222222) fails WCAG AA *(Agent 7)*
+- [x] **ARIA labels and focus indicators** — `:focus-visible` outline in CSS; `aria-current` + `aria-label` on all sidebar nav items *(Agent 7)*
+- [ ] **Contrast at small sizes** — `--text-muted` at 10px still borderline against both bg-surface values; not yet addressed *(Agent 7)*
 - [x] **Word count / reading time** — Shown below editor; reading time appears at 200+ words *(Agent 1)*
 - [x] **Placeholder text in editor** — "Start writing…" via Tiptap Placeholder extension *(Agent 1)*
-- [ ] **Journal "Untitled" fallback** — Show first line of body instead of generic placeholder *(Agent 4)*
+- [x] **Journal "Untitled" fallback** — 3-tier fallback in both journals and notes: title → first body line (italic) → "Untitled" (muted italic) *(Agent 4)*
 - [ ] **Resizable panels** — Sidebar (220px) and detail panel (420px) are fixed-width
 - [ ] **Collections in sidebar** — Nextcloud collections not visible in navigation
 - [ ] **About / version info** — No way to see installed version
