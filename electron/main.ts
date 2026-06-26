@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, dialog, ipcMain } from 'electron'
+import { app, BrowserWindow, Menu, dialog, ipcMain, session } from 'electron'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
@@ -36,7 +36,10 @@ function createWindow() {
     icon: path.join(process.env.VITE_PUBLIC, 'icon.ico'),
     frame: false,
     webPreferences: {
-      preload: path.join(__dirname, 'preload.mjs'),
+      preload:          path.join(__dirname, 'preload.mjs'),
+      contextIsolation: true,
+      nodeIntegration:  false,
+      sandbox:          true,
     },
   })
 
@@ -90,10 +93,12 @@ function createWindow() {
           accelerator: 'CmdOrCtrl+Shift+S',
           click: () => win?.webContents.send('menu-action', 'sync-now'),
         },
-        { type: 'separator' },
-        { label: 'Reload', accelerator: 'CmdOrCtrl+R', role: 'reload' },
-        { label: 'Force Reload', accelerator: 'CmdOrCtrl+Shift+R', role: 'forceReload' },
-        { label: 'Toggle DevTools', accelerator: 'CmdOrCtrl+Shift+I', role: 'toggleDevTools' },
+        ...(!app.isPackaged ? [
+          { type: 'separator' as const },
+          { label: 'Reload', accelerator: 'CmdOrCtrl+R', role: 'reload' as const },
+          { label: 'Force Reload', accelerator: 'CmdOrCtrl+Shift+R', role: 'forceReload' as const },
+          { label: 'Toggle DevTools', accelerator: 'CmdOrCtrl+Shift+I', role: 'toggleDevTools' as const },
+        ] : []),
       ],
     },
     {
@@ -146,6 +151,17 @@ app.on('activate', () => {
 })
 
 app.whenReady().then(async () => {
+    session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+        callback({
+            responseHeaders: {
+                ...details.responseHeaders,
+                'Content-Security-Policy': [
+                    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.tile.openstreetmap.org; connect-src 'self' https:; font-src 'self' data:; object-src 'none'; base-uri 'self';"
+                ],
+            },
+        })
+    })
+
     getDb()
     registerIpcHandlers()
 

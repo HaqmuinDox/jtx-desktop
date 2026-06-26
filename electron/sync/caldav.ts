@@ -18,6 +18,16 @@ export interface RawCalDavEntry {
 // ── Client factory ────────────────────────────────────────────────────────────
 
 async function makeClient(creds: CalDavCredentials) {
+    let parsed: URL
+    try {
+        parsed = new URL(creds.serverUrl)
+    } catch {
+        throw new Error('Invalid server URL')
+    }
+    if (parsed.protocol !== 'https:') {
+        throw new Error(`Server URL must use HTTPS (got ${parsed.protocol})`)
+    }
+
     // Nextcloud's CalDAV endpoint is always at /remote.php/dav
     // tsdav needs this explicitly — auto-discovery via /.well-known/caldav
     // does not reliably return the principalUrl for Nextcloud.

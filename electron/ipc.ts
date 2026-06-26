@@ -63,6 +63,10 @@ export function registerIpcHandlers() {
         const db = getDb()
         const now = new Date().toISOString()
         const id  = entry.id ?? randomUUID()
+        const VALID_TYPES = ['journal', 'note', 'todo'] as const
+        if (!VALID_TYPES.includes(entry.type)) {
+            return { error: 'Invalid entry type' }
+        }
         db.prepare(`
             INSERT INTO entries (
                 id, type, title, body,
@@ -187,7 +191,7 @@ export function registerIpcHandlers() {
 
     // Returns entries that are marked dirty=1 (for diagnostics)
     ipcMain.handle('sync:setInterval', (_event, minutes: number) => {
-        const ms = Math.max(1, minutes) * 60 * 1000
+        const ms = Math.min(Math.max(1, minutes), 1440) * 60 * 1000
         startSyncInterval(ms)
         return { ok: true }
     })
@@ -205,12 +209,11 @@ export function registerIpcHandlers() {
         try {
             const credPath = path.join(app.getPath('userData'), 'credentials.enc')
             const plain    = JSON.stringify(creds)
-            if (safeStorage.isEncryptionAvailable()) {
-                const encrypted = safeStorage.encryptString(plain)
-                fs.writeFileSync(credPath, encrypted)
-            } else {
-                fs.writeFileSync(credPath, plain, 'utf-8')
+            if (!safeStorage.isEncryptionAvailable()) {
+                return { ok: false, error: 'System encryption is unavailable. Credentials cannot be saved securely on this system.' }
             }
+            const encrypted = safeStorage.encryptString(plain)
+            fs.writeFileSync(credPath, encrypted)
             return { ok: true }
         } catch (err) {
             const message = err instanceof Error ? err.message : 'Unknown error'
@@ -226,12 +229,9 @@ export function loadCredentials(): Record<string, string> | null {
         const credPath = path.join(app.getPath('userData'), 'credentials.enc')
         if (!fs.existsSync(credPath)) return null
         const raw = fs.readFileSync(credPath)
-        if (safeStorage.isEncryptionAvailable()) {
-            const decrypted = safeStorage.decryptString(Buffer.from(raw))
-            return JSON.parse(decrypted)
-        } else {
-            return JSON.parse(raw.toString('utf-8'))
-        }
+        if (!safeStorage.isEncryptionAvailable()) return null
+        const decrypted = safeStorage.decryptString(Buffer.from(raw))
+        return JSON.parse(decrypted)
     } catch (_e) {
         return null
     }

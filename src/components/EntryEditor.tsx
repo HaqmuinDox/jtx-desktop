@@ -156,6 +156,15 @@ export function EntryEditor({ content, onChange, readOnly = false }: EntryEditor
 // TipTap works with HTML internally. We convert to/from Markdown for storage
 // so the iCal DESCRIPTION field stays as plain Markdown (jtx Board compatible).
 
+function escapeHtml(text: string): string {
+    return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;')
+}
+
 function applyInline(text: string): string {
     return text
         .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
@@ -168,15 +177,15 @@ function markdownToHtml(md: string): string {
     return md
         .split('\n\n')
         .map(block => {
-            if (block.startsWith('# '))    return `<h1>${applyInline(block.slice(2))}</h1>`
-            if (block.startsWith('## '))   return `<h2>${applyInline(block.slice(3))}</h2>`
-            if (block.startsWith('### '))  return `<h3>${applyInline(block.slice(4))}</h3>`
-            if (block.startsWith('> '))    return `<blockquote><p>${applyInline(block.slice(2))}</p></blockquote>`
+            if (block.startsWith('# '))    return `<h1>${applyInline(escapeHtml(block.slice(2)))}</h1>`
+            if (block.startsWith('## '))   return `<h2>${applyInline(escapeHtml(block.slice(3)))}</h2>`
+            if (block.startsWith('### '))  return `<h3>${applyInline(escapeHtml(block.slice(4)))}</h3>`
+            if (block.startsWith('> '))    return `<blockquote><p>${applyInline(escapeHtml(block.slice(2)))}</p></blockquote>`
             if (block.match(/^[-*] /m)) {
                 const items = block
                     .split('\n')
                     .filter(l => l.trim())
-                    .map(l => `<li><p>${applyInline(l.replace(/^[-*] /, ''))}</p></li>`)
+                    .map(l => `<li><p>${applyInline(escapeHtml(l.replace(/^[-*] /, '')))}</p></li>`)
                     .join('')
                 return `<ul>${items}</ul>`
             }
@@ -184,11 +193,11 @@ function markdownToHtml(md: string): string {
                 const items = block
                     .split('\n')
                     .filter(l => l.trim())
-                    .map(l => `<li><p>${applyInline(l.replace(/^\d+\. /, ''))}</p></li>`)
+                    .map(l => `<li><p>${applyInline(escapeHtml(l.replace(/^\d+\. /, '')))}</p></li>`)
                     .join('')
                 return `<ol>${items}</ol>`
             }
-            return `<p>${applyInline(block).split('\n').join('<br>')}</p>`
+            return `<p>${applyInline(escapeHtml(block)).split('\n').join('<br>')}</p>`
         })
         .join('')
 }
