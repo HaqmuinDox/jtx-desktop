@@ -15,9 +15,9 @@ Items are grouped by priority. Agents assigned in parentheses where applicable.
 
 ## Medium Priority
 
-- [x] **Light/dark/system theme** — Dark/Light/System toggle in Settings; `data-theme` attribute + full CSS variable set for light mode; system mode follows `prefers-color-scheme` *(Agent 5)* ⚠️ needs manual test
-- [x] **Font size setting** — sm/md/lg/xl buttons in Settings; implemented via CSS scale transform on `#root` *(Agent 5)* ⚠️ needs manual test
-- [x] **Accent color setting** — Six swatches + custom color picker in Settings; full RGB→HSL palette derivation tints backgrounds, borders, and text *(Agent 5)* ⚠️ needs manual test
+- [x] **Light/dark/system theme** — Dark/Light/System toggle in Settings; `data-theme` attribute + full CSS variable set for light mode; system mode follows `prefers-color-scheme` *(Agent 5)*
+- [x] **Font size setting** — sm/md/lg/xl buttons in Settings; implemented via CSS scale transform on `#root` *(Agent 5)*
+- [x] **Accent color setting** — Six swatches + custom color picker in Settings; full RGB→HSL palette derivation tints backgrounds, borders, and text *(Agent 5)*
 - [x] **Remove Google Fonts dependency** — No `<link>` in `index.html`; fonts fall back to Georgia / Segoe UI offline *(Agent 5)*
 - [x] **Collapsible sidebar** — Hamburger toggle; sidebar collapses to icon-only rail *(Agent 6)*
 - [x] **Sort controls** — Journals: newest/oldest. Notes: last-updated/created/A→Z. Tasks: priority/due/A→Z/last-updated with asc/desc toggle. All persisted to localStorage. *(Agents 2, 4)*
