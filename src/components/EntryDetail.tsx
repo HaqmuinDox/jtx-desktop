@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
-import { useAppStore } from '../store/app'
+import {DeviceLocation, useAppStore} from '../store/app'
 import { EntryEditor } from './EntryEditor'
 import type { Entry, AlarmObject } from '../../shared/types'
 
@@ -80,7 +80,7 @@ async function cascadeProgressFrom(entryId: string, allEntries: Entry[]): Promis
 
     if (entry.parent_uid) {
         const updated = allEntries.map(e =>
-            e.id === entryId ? { ...e, progress, status } : e
+            e.id === entryId ? ({ ...e, progress, status } as Entry) : e
         )
         await cascadeProgressFrom(entry.parent_uid, updated)
     }
