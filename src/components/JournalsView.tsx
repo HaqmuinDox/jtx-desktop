@@ -1,15 +1,19 @@
+import { useState } from 'react'
 import { useAppStore } from '../store/app.ts'
 import type { Entry } from '../../shared/types'
 
 export function JournalsView() {
     const { entries, selectedEntry, setSelectedEntry, setCreatingType } = useAppStore()
+    const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest')
 
     const journals = entries
         .filter(e => e.type === 'journal')
         .sort((a, b) => {
             const dateA = a.start_date ?? a.created_at
             const dateB = b.start_date ?? b.created_at
-            return dateB.localeCompare(dateA)
+            return sortOrder === 'newest'
+                ? dateB.localeCompare(dateA)
+                : dateA.localeCompare(dateB)
         })
 
     // Group by month
@@ -48,7 +52,27 @@ export function JournalsView() {
                 }}>
                     Journals
                 </h1>
-                <NewButton onClick={() => setCreatingType('journal')} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <select
+                        value={sortOrder}
+                        onChange={e => setSortOrder(e.target.value as 'newest' | 'oldest')}
+                        style={{
+                            background:   'var(--bg-raised)',
+                            border:       '1px solid var(--border)',
+                            borderRadius: 'var(--radius-sm)',
+                            color:        'var(--text-secondary)',
+                            fontSize:     '12px',
+                            fontFamily:   'var(--font-ui)',
+                            padding:      '4px 8px',
+                            cursor:       'pointer',
+                            outline:      'none',
+                        }}
+                    >
+                        <option value="newest">Newest first</option>
+                        <option value="oldest">Oldest first</option>
+                    </select>
+                    <NewButton onClick={() => setCreatingType('journal')} />
+                </div>
             </div>
 
             {Object.entries(groups).map(([month, monthEntries]) => (
@@ -104,6 +128,31 @@ function JournalRow({
     const dayName = date.toLocaleDateString('en-US', { weekday: 'short' })
     const tags: string[] = (() => { try { return entry.categories ? JSON.parse(entry.categories) : [] } catch { return [] } })()
 
+    // Determine display title and its style
+    let displayTitle: string
+    let titleColor: string
+    let titleFontStyle: 'normal' | 'italic' = 'normal'
+
+    if (entry.title) {
+        displayTitle = entry.title
+        titleColor   = 'var(--text-primary)'
+    } else {
+        const bodyFirstLine = entry.body
+            ?.split('\n')
+            .find(l => l.trim())
+            ?.replace(/^[#*>\-\s`]+/, '')
+            .trim()
+        if (bodyFirstLine) {
+            displayTitle  = bodyFirstLine
+            titleColor    = 'var(--text-secondary)'
+            titleFontStyle = 'italic'
+        } else {
+            displayTitle  = 'Untitled'
+            titleColor    = 'var(--text-muted)'
+            titleFontStyle = 'italic'
+        }
+    }
+
     return (
         <div
             onClick={onClick}
@@ -158,13 +207,14 @@ function JournalRow({
             <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{
                     fontSize:     '14px',
-                    color:        'var(--text-primary)',
+                    color:        titleColor,
                     fontWeight:   500,
+                    fontStyle:    titleFontStyle,
                     marginBottom: '3px',
                 }}
                      className="truncate"
                 >
-                    {entry.title || 'Untitled'}
+                    {displayTitle}
                 </div>
 
                 {entry.body && (

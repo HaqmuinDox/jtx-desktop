@@ -1,12 +1,19 @@
+import { useState } from 'react'
 import { useAppStore } from '../store/app.ts'
 import type { Entry } from '../../shared/types'
 
 export function NotesView() {
     const { entries, selectedEntry, setSelectedEntry, setCreatingType } = useAppStore()
+    const [sortOrder, setSortOrder] = useState<'updated' | 'created' | 'alpha'>('updated')
+    const [layout, setLayout] = useState<'grid' | 'list'>('grid')
 
     const notes = entries
         .filter(e => e.type === 'note')
-        .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
+        .sort((a, b) => {
+            if (sortOrder === 'updated') return b.updated_at.localeCompare(a.updated_at)
+            if (sortOrder === 'created') return b.created_at.localeCompare(a.created_at)
+            return (a.title ?? '').localeCompare(b.title ?? '', undefined, { sensitivity: 'base' })
+        })
 
     if (notes.length === 0) {
         return (
@@ -44,26 +51,91 @@ export function NotesView() {
                         {notes.length}
                     </span>
                 </h1>
-                <NewButton onClick={() => setCreatingType('note')} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {/* Layout toggles */}
+                    <button
+                        onClick={() => setLayout('grid')}
+                        style={{
+                            background:   layout === 'grid' ? 'var(--bg-active)' : 'transparent',
+                            border:       '1px solid var(--border)',
+                            borderRadius: 'var(--radius-sm)',
+                            color:        'var(--text-secondary)',
+                            fontSize:     '14px',
+                            padding:      '3px 7px',
+                            cursor:       'pointer',
+                        }}
+                        title="Grid view"
+                    >⊞</button>
+                    <button
+                        onClick={() => setLayout('list')}
+                        style={{
+                            background:   layout === 'list' ? 'var(--bg-active)' : 'transparent',
+                            border:       '1px solid var(--border)',
+                            borderRadius: 'var(--radius-sm)',
+                            color:        'var(--text-secondary)',
+                            fontSize:     '14px',
+                            padding:      '3px 7px',
+                            cursor:       'pointer',
+                        }}
+                        title="List view"
+                    >≡</button>
+                    {/* Sort select */}
+                    <select
+                        value={sortOrder}
+                        onChange={e => setSortOrder(e.target.value as 'updated' | 'created' | 'alpha')}
+                        style={{
+                            background:   'var(--bg-raised)',
+                            border:       '1px solid var(--border)',
+                            borderRadius: 'var(--radius-sm)',
+                            color:        'var(--text-secondary)',
+                            fontSize:     '12px',
+                            fontFamily:   'var(--font-ui)',
+                            padding:      '4px 8px',
+                            cursor:       'pointer',
+                            outline:      'none',
+                        }}
+                    >
+                        <option value="updated">Last updated</option>
+                        <option value="created">Created</option>
+                        <option value="alpha">A → Z</option>
+                    </select>
+                    <NewButton onClick={() => setCreatingType('note')} />
+                </div>
             </div>
 
-            {/* Card grid */}
-            <div style={{
-                display:               'grid',
-                gridTemplateColumns:   'repeat(auto-fill, minmax(220px, 1fr))',
-                gap:                   '12px',
-            }}>
-                {notes.map(note => (
-                    <NoteCard
-                        key={note.id}
-                        note={note}
-                        isSelected={selectedEntry?.id === note.id}
-                        onClick={() => setSelectedEntry(
-                            selectedEntry?.id === note.id ? null : note
-                        )}
-                    />
-                ))}
-            </div>
+            {layout === 'grid' ? (
+                /* Card grid */
+                <div style={{
+                    display:             'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+                    gap:                 '12px',
+                }}>
+                    {notes.map(note => (
+                        <NoteCard
+                            key={note.id}
+                            note={note}
+                            isSelected={selectedEntry?.id === note.id}
+                            onClick={() => setSelectedEntry(
+                                selectedEntry?.id === note.id ? null : note
+                            )}
+                        />
+                    ))}
+                </div>
+            ) : (
+                /* List */
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    {notes.map(note => (
+                        <NoteListRow
+                            key={note.id}
+                            note={note}
+                            isSelected={selectedEntry?.id === note.id}
+                            onClick={() => setSelectedEntry(
+                                selectedEntry?.id === note.id ? null : note
+                            )}
+                        />
+                    ))}
+                </div>
+            )}
         </div>
     )
 }
@@ -101,7 +173,6 @@ function NoteCard({
                 display:      'flex',
                 flexDirection:'column',
                 gap:          '8px',
-                minHeight:    '120px',
             }}
             onMouseEnter={e => {
                 const el = e.currentTarget as HTMLDivElement
@@ -173,6 +244,119 @@ function NoteCard({
                 }}>
           {dateStr}
         </span>
+            </div>
+        </div>
+    )
+}
+
+function NoteListRow({
+                         note, isSelected, onClick
+                     }: {
+    note:       Entry
+    isSelected: boolean
+    onClick:    () => void
+}) {
+    const tags: string[] = (() => { try { return note.categories ? JSON.parse(note.categories) : [] } catch { return [] } })()
+
+    const preview = note.body
+        ? note.body.replace(/[#*`_]/g, '').slice(0, 180)
+        : null
+
+    const date   = new Date(note.updated_at)
+    const dayNum = date.toLocaleDateString('en-US', { day: '2-digit' })
+    const month  = date.toLocaleDateString('en-US', { month: 'short' })
+
+    return (
+        <div
+            onClick={onClick}
+            style={{
+                display:      'flex',
+                alignItems:   'flex-start',
+                gap:          '16px',
+                padding:      '10px 14px',
+                borderRadius: 'var(--radius-md)',
+                cursor:       'pointer',
+                borderLeft:   isSelected ? '2px solid var(--accent)' : '2px solid transparent',
+                background:   isSelected ? 'var(--bg-active)' : 'transparent',
+                transition:   'background 0.12s',
+            }}
+            onMouseEnter={e => {
+                if (!isSelected)
+                    (e.currentTarget as HTMLDivElement).style.background = 'var(--bg-hover)'
+            }}
+            onMouseLeave={e => {
+                if (!isSelected)
+                    (e.currentTarget as HTMLDivElement).style.background = 'transparent'
+            }}
+        >
+            {/* Date badge */}
+            <div style={{
+                minWidth:   '36px',
+                textAlign:  'center',
+                paddingTop: '1px',
+            }}>
+                <div style={{
+                    fontSize:   '18px',
+                    fontFamily: 'var(--font-display)',
+                    color:      isSelected ? 'var(--accent)' : 'var(--text-secondary)',
+                    lineHeight: 1,
+                }}>
+                    {dayNum}
+                </div>
+                <div style={{
+                    fontSize:      '10px',
+                    color:         'var(--text-muted)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    marginTop:     '2px',
+                }}>
+                    {month}
+                </div>
+            </div>
+
+            {/* Content */}
+            <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{
+                    fontSize:     '14px',
+                    fontWeight:   500,
+                    color:        'var(--text-primary)',
+                    marginBottom: '3px',
+                }}
+                     className="truncate"
+                >
+                    {note.title || 'Untitled'}
+                </div>
+                {preview && (
+                    <div style={{
+                        fontSize:  '12px',
+                        color:     'var(--text-muted)',
+                        lineHeight: 1.4,
+                    }}
+                         className="truncate"
+                    >
+                        {preview}
+                    </div>
+                )}
+                {tags.length > 0 && (
+                    <div style={{
+                        display:  'flex',
+                        gap:      '4px',
+                        marginTop:'6px',
+                        flexWrap: 'wrap',
+                    }}>
+                        {tags.slice(0, 4).map((tag: string) => (
+                            <span key={tag} style={{
+                                fontSize:     '10px',
+                                color:        'var(--accent-dim)',
+                                background:   'var(--accent-glow)',
+                                borderRadius: 'var(--radius-sm)',
+                                padding:      '1px 6px',
+                            }}>
+                                {tag}
+                            </span>
+                        ))}
+                    </div>
+                )}
             </div>
         </div>
     )
