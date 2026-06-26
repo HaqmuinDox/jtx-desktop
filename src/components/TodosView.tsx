@@ -32,28 +32,28 @@ const STATUS_GROUPS = [
 export function TodosView() {
     const { entries, selectedEntry, setSelectedEntry, setCreatingType } = useAppStore()
     const [sortBy, setSortBy] = useState<'priority' | 'due' | 'alpha' | 'updated'>('priority')
+    const [sortAsc, setSortAsc] = useState(true)
     const [showCompleted, setShowCompleted] = useState(true)
 
     const todos = entries
         .filter(e => e.type === 'todo' && !e.parent_uid)
         .sort((a, b) => {
+            let result = 0
             if (sortBy === 'priority') {
                 const pa = a.priority ?? 9
                 const pb = b.priority ?? 9
-                if (pa !== pb) return pa - pb
-                return b.updated_at.localeCompare(a.updated_at)
+                result = pa !== pb ? pa - pb : b.updated_at.localeCompare(a.updated_at)
+            } else if (sortBy === 'due') {
+                if (!a.due_date && !b.due_date) result = 0
+                else if (!a.due_date) result = 1
+                else if (!b.due_date) result = -1
+                else result = a.due_date.localeCompare(b.due_date)
+            } else if (sortBy === 'alpha') {
+                result = (a.title ?? '').toLowerCase().localeCompare((b.title ?? '').toLowerCase())
+            } else {
+                result = b.updated_at.localeCompare(a.updated_at)
             }
-            if (sortBy === 'due') {
-                if (!a.due_date && !b.due_date) return 0
-                if (!a.due_date) return 1
-                if (!b.due_date) return -1
-                return a.due_date.localeCompare(b.due_date)
-            }
-            if (sortBy === 'alpha') {
-                return (a.title ?? '').toLowerCase().localeCompare((b.title ?? '').toLowerCase())
-            }
-            // updated
-            return b.updated_at.localeCompare(a.updated_at)
+            return sortAsc ? result : -result
         })
 
     const subtasks = entries.filter(e => e.type === 'todo' && e.parent_uid)
@@ -129,6 +129,23 @@ export function TodosView() {
                         <option value="alpha">A → Z</option>
                         <option value="updated">Last updated</option>
                     </select>
+                    <button
+                        onClick={() => setSortAsc(v => !v)}
+                        title={sortAsc ? 'Ascending — click to reverse' : 'Descending — click to reverse'}
+                        style={{
+                            background:   'transparent',
+                            border:       '1px solid var(--border)',
+                            borderRadius: 'var(--radius-sm)',
+                            color:        'var(--text-secondary)',
+                            fontSize:     '14px',
+                            fontFamily:   'var(--font-ui)',
+                            padding:      '2px 7px',
+                            cursor:       'pointer',
+                            lineHeight:   1,
+                        }}
+                    >
+                        {sortAsc ? '↑' : '↓'}
+                    </button>
                     <NewButton onClick={() => setCreatingType('todo')} />
                 </div>
             </div>
