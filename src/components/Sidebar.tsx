@@ -21,7 +21,7 @@ export function Sidebar() {
         activeSection, setActiveSection,
         searchQuery, setSearchQuery,
         sidebarCollapsed, setSidebarCollapsed,
-        filterCollection, setFilterCollection,
+        filterCollections, setFilterCollections,
     } = useAppStore()
 
     const [collections, setCollections] = useState<Collection[]>(() => {
@@ -283,41 +283,41 @@ export function Sidebar() {
                         Collections
                     </div>
                     {collections.map(c => {
-                        const isActive = filterCollection === c.url
+                        const isActive = filterCollections.has(c.url)
                         return (
                             <button
                                 key={c.url}
-                                title={isActive ? 'Click to clear filter' : `Filter by ${c.display_name ?? c.url}`}
-                                onClick={() => setFilterCollection(isActive ? null : c.url)}
-                                style={{
-                                    display:      'flex',
-                                    alignItems:   'center',
-                                    gap:          '7px',
-                                    padding:      '5px 12px',
-                                    borderRadius: 'var(--radius-sm)',
-                                    fontSize:     '12px',
-                                    color:        isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
-                                    overflow:     'hidden',
-                                    width:        '100%',
-                                    textAlign:    'left',
-                                    background:   isActive ? 'var(--bg-active)' : 'transparent',
-                                    border:       'none',
-                                    cursor:       'pointer',
-                                    borderLeft:   isActive ? '2px solid var(--accent)' : '2px solid transparent',
-                                    transition:   'background 0.12s',
-                                    fontFamily:   'var(--font-ui)',
+                                title={isActive ? 'Deselect collection' : `Include ${c.display_name ?? c.url}`}
+                                onClick={() => {
+                                    const next = new Set(filterCollections)
+                                    if (isActive) next.delete(c.url); else next.add(c.url)
+                                    setFilterCollections(next)
                                 }}
-                                onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLButtonElement).style.background = 'var(--bg-hover)' }}
-                                onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}
+                                style={{
+                                    display:    'flex',
+                                    alignItems: 'center',
+                                    gap:        '7px',
+                                    padding:    '5px 12px',
+                                    fontSize:   '12px',
+                                    color:      'var(--text-secondary)',
+                                    overflow:   'hidden',
+                                    width:      '100%',
+                                    textAlign:  'left',
+                                    background: 'transparent',
+                                    border:     'none',
+                                    cursor:     'pointer',
+                                    fontFamily: 'var(--font-ui)',
+                                }}
                             >
                                 <span style={{
-                                    width:        '7px',
-                                    height:       '7px',
-                                    minWidth:     '7px',
+                                    width:        '8px',
+                                    height:       '8px',
+                                    minWidth:     '8px',
                                     borderRadius: '50%',
-                                    background:   c.color ?? 'var(--accent)',
-                                    opacity:      isActive ? 1 : 0.8,
+                                    background:   isActive ? (c.color ?? 'var(--accent)') : 'transparent',
+                                    border:       `1.5px solid ${c.color ?? 'var(--accent)'}`,
                                     flexShrink:   0,
+                                    transition:   'background 0.15s',
                                 }} />
                                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                     {c.display_name ?? c.url}

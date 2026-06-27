@@ -14,7 +14,7 @@ Items are grouped by priority. Agents assigned in parentheses where applicable.
 - [x] **Inline task complete** — Check off tasks directly from the list without opening detail panel *(Agent 2)*
 - [x] **Wire up missing keyboard shortcuts** — Ctrl+Shift+J/N/T, Ctrl+F (focus search), Ctrl+Shift+S (sync now) wired in App.tsx
 - [x] **Replace `window.confirm` delete dialog** — Inline styled confirmation banner in EntryDetail replaces the native OS dialog
-- [ ] **Collections sidebar: click-to-filter** — Collections are now interactive buttons; clicking filters the active view, clicking again clears the filter; active collection highlighted with accent left-border
+- [x] **Collections sidebar: click-to-filter** — Collections are multi-select toggles; toggling a collection includes/excludes its entries; zero selected = show all; selected state shown via filled circle dot (hollow when inactive)
 - [x] **List rows: keyboard accessibility** — JournalRow, NoteCard, NoteListRow, TodoRow, SubtaskRow all have `role="button"`, `tabIndex={0}`, and `onKeyDown` Enter/Space handlers
 - [x] **FormField: associate labels with inputs** — `FormField` now accepts `htmlFor` and renders a `<label>`; all EditForm fields have matching `id` attributes
 

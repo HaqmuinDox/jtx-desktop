@@ -4,13 +4,13 @@ import type { Entry } from '../../shared/types'
 import { NewButton, Empty } from './shared'
 
 export function JournalsView() {
-    const { entries, selectedEntry, setSelectedEntry, setCreatingType, searchQuery, setSearchQuery, filterCollection } = useAppStore()
+    const { entries, selectedEntry, setSelectedEntry, setCreatingType, searchQuery, setSearchQuery, filterCollections } = useAppStore()
     const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>(
         () => (localStorage.getItem('jtx_journals_sort') as 'newest' | 'oldest' | null) ?? 'newest'
     )
 
     const journals = entries
-        .filter(e => e.type === 'journal' && (!filterCollection || e.collection === filterCollection))
+        .filter(e => e.type === 'journal' && (filterCollections.size === 0 || filterCollections.has(e.collection)))
         .sort((a, b) => {
             const dateA = a.start_date ?? a.created_at
             const dateB = b.start_date ?? b.created_at
@@ -191,9 +191,6 @@ function JournalRow({
                 padding:       '12px 14px',
                 borderRadius:  'var(--radius-md)',
                 background:    isSelected ? 'var(--bg-active)' : 'transparent',
-                borderLeft:    isSelected
-                    ? '2px solid var(--accent)'
-                    : '2px solid transparent',
                 cursor:        'pointer',
                 transition:    'background 0.12s',
             }}

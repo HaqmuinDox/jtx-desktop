@@ -72,7 +72,7 @@ const btnActive: React.CSSProperties = {
 }
 
 export function TodosView() {
-    const { entries, selectedEntry, setSelectedEntry, setCreatingType, searchQuery, setSearchQuery, filterCollection } = useAppStore()
+    const { entries, selectedEntry, setSelectedEntry, setCreatingType, searchQuery, setSearchQuery, filterCollections } = useAppStore()
 
     const [sortBy, setSortBy] = useState<'priority' | 'due' | 'alpha' | 'updated'>(
         () => (localStorage.getItem('jtx_todos_sort') as 'priority' | 'due' | 'alpha' | 'updated' | null) ?? 'priority'
@@ -127,7 +127,7 @@ export function TodosView() {
     )
 
     const todos = entries
-        .filter(e => e.type === 'todo' && !e.parent_uid && (!filterCollection || e.collection === filterCollection))
+        .filter(e => e.type === 'todo' && !e.parent_uid && (filterCollections.size === 0 || filterCollections.has(e.collection)))
         .sort((a, b) => {
             let result
             if (sortBy === 'priority') {
@@ -692,9 +692,6 @@ function TodoRow({
                 padding:    '10px 14px',
                 borderRadius: 'var(--radius-md)',
                 background:   isSelected ? 'var(--bg-active)' : 'transparent',
-                borderLeft:   isSelected
-                    ? '2px solid var(--accent)'
-                    : '2px solid transparent',
                 cursor:     'pointer',
                 transition: 'background 0.12s',
                 opacity:    isDone ? 0.5 : 1,

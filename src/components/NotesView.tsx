@@ -4,7 +4,7 @@ import type { Entry } from '../../shared/types'
 import { NewButton, Empty } from './shared'
 
 export function NotesView() {
-    const { entries, selectedEntry, setSelectedEntry, setCreatingType, searchQuery, setSearchQuery, filterCollection } = useAppStore()
+    const { entries, selectedEntry, setSelectedEntry, setCreatingType, searchQuery, setSearchQuery, filterCollections } = useAppStore()
     const [sortOrder, setSortOrder] = useState<'updated' | 'created' | 'alpha'>(
         () => (localStorage.getItem('jtx_notes_sort') as 'updated' | 'created' | 'alpha' | null) ?? 'updated'
     )
@@ -13,7 +13,7 @@ export function NotesView() {
     )
 
     const notes = entries
-        .filter(e => e.type === 'note' && (!filterCollection || e.collection === filterCollection))
+        .filter(e => e.type === 'note' && (filterCollections.size === 0 || filterCollections.has(e.collection)))
         .sort((a, b) => {
             if (sortOrder === 'updated') return b.updated_at.localeCompare(a.updated_at)
             if (sortOrder === 'created') return b.created_at.localeCompare(a.created_at)
@@ -329,7 +329,6 @@ function NoteListRow({
                 padding:      '10px 14px',
                 borderRadius: 'var(--radius-md)',
                 cursor:       'pointer',
-                borderLeft:   isSelected ? '2px solid var(--accent)' : '2px solid transparent',
                 background:   isSelected ? 'var(--bg-active)' : 'transparent',
                 transition:   'background 0.12s',
             }}

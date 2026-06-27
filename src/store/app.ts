@@ -47,8 +47,8 @@ interface AppState {
     searchQuery:    string
     setSearchQuery: (q: string) => void
 
-    filterCollection:    string | null
-    setFilterCollection: (url: string | null) => void
+    filterCollections:    Set<string>
+    setFilterCollections: (urls: Set<string>) => void
 
     sidebarCollapsed:    boolean
     setSidebarCollapsed: (v: boolean) => void
@@ -138,7 +138,7 @@ applyAccent(savedAccent, savedTheme)
 
 export const useAppStore = create<AppState>((set, get) => ({
     activeSection:    'journals',
-    setActiveSection: (activeSection) => set({ activeSection, selectedEntry: null, creatingType: null, creatingParentUid: null, creatingParentCollection: null, filterCollection: null }),
+    setActiveSection: (activeSection) => set({ activeSection, selectedEntry: null, creatingType: null, creatingParentUid: null, creatingParentCollection: null, filterCollections: new Set() }),
 
     entries:    [],
     setEntries: (entries) => set({ entries }),
@@ -187,8 +187,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     searchQuery:    '',
     setSearchQuery: (searchQuery) => set({ searchQuery }),
 
-    filterCollection:    null,
-    setFilterCollection: (filterCollection) => set({ filterCollection }),
+    filterCollections:    new Set(),
+    setFilterCollections: (filterCollections) => set({ filterCollections }),
 
     sidebarCollapsed: localStorage.getItem('jtx_sidebar') === 'true',
     setSidebarCollapsed: (sidebarCollapsed) => {
