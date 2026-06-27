@@ -127,7 +127,7 @@ export function TodosView() {
     )
 
     const todos = entries
-        .filter(e => e.type === 'todo' && !e.parent_uid && (filterCollections.size === 0 || filterCollections.has(e.collection)))
+        .filter(e => e.type === 'todo' && !e.parent_uid && filterCollections.has(e.collection))
         .sort((a, b) => {
             let result
             if (sortBy === 'priority') {

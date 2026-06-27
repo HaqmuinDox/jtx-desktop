@@ -136,9 +136,17 @@ applyTheme(savedTheme)
 applyFontSize(savedFontSize)
 applyAccent(savedAccent, savedTheme)
 
+function loadFilterCollections(section: Section): Set<string> {
+    if (section === 'settings') return new Set()
+    try {
+        const saved = localStorage.getItem(`jtx_filter_${section}`)
+        return saved ? new Set(JSON.parse(saved) as string[]) : new Set()
+    } catch { return new Set() }
+}
+
 export const useAppStore = create<AppState>((set, get) => ({
     activeSection:    'journals',
-    setActiveSection: (activeSection) => set({ activeSection, selectedEntry: null, creatingType: null, creatingParentUid: null, creatingParentCollection: null, filterCollections: new Set() }),
+    setActiveSection: (activeSection) => set({ activeSection, selectedEntry: null, creatingType: null, creatingParentUid: null, creatingParentCollection: null, filterCollections: loadFilterCollections(activeSection) }),
 
     entries:    [],
     setEntries: (entries) => set({ entries }),
@@ -187,8 +195,14 @@ export const useAppStore = create<AppState>((set, get) => ({
     searchQuery:    '',
     setSearchQuery: (searchQuery) => set({ searchQuery }),
 
-    filterCollections:    new Set(),
-    setFilterCollections: (filterCollections) => set({ filterCollections }),
+    filterCollections:    loadFilterCollections('journals'),
+    setFilterCollections: (filterCollections) => {
+        const section = get().activeSection
+        if (section !== 'settings') {
+            localStorage.setItem(`jtx_filter_${section}`, JSON.stringify([...filterCollections]))
+        }
+        set({ filterCollections })
+    },
 
     sidebarCollapsed: localStorage.getItem('jtx_sidebar') === 'true',
     setSidebarCollapsed: (sidebarCollapsed) => {

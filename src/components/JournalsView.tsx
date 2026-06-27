@@ -24,7 +24,7 @@ export function JournalsView() {
     )
 
     const journals = entries
-        .filter(e => e.type === 'journal' && (filterCollections.size === 0 || filterCollections.has(e.collection)))
+        .filter(e => e.type === 'journal' && filterCollections.has(e.collection))
         .sort((a, b) => {
             const dateA = a.start_date ?? a.created_at
             const dateB = b.start_date ?? b.created_at

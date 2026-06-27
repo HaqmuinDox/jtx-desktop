@@ -27,7 +27,7 @@ export function NotesView() {
     )
 
     const notes = entries
-        .filter(e => e.type === 'note' && (filterCollections.size === 0 || filterCollections.has(e.collection)))
+        .filter(e => e.type === 'note' && filterCollections.has(e.collection))
         .sort((a, b) => {
             if (sortOrder === 'updated') return b.updated_at.localeCompare(a.updated_at)
             if (sortOrder === 'created') return b.created_at.localeCompare(a.created_at)
