@@ -235,10 +235,11 @@ export function SettingsView() {
 
             {/* Form */}
             <div style={{
-                maxWidth:  '480px',
-                display:   'flex',
-                flexDirection: 'column',
-                gap:       '20px',
+                maxWidth:     '480px',
+                display:      'flex',
+                flexDirection:'column',
+                gap:          '20px',
+                marginBottom: '40px',
             }}>
                 <Field
                     label="Nextcloud URL"
@@ -328,47 +329,43 @@ export function SettingsView() {
                         variant="secondary"
                     />
                 </div>
+            </div>
 
-                {/* Default location */}
-                <div style={{ borderTop: '1px solid var(--border)', paddingTop: '24px', marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                    <div>
-                        <div style={{ fontSize: '14px', color: 'var(--text-primary)', marginBottom: '4px' }}>
-                            Default location
-                        </div>
-                        <div style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                            Pre-filled on every new entry. Leave blank to skip.
-                        </div>
-                    </div>
-
-                    <MapPicker
-                        lat={locLat}
-                        lon={locLon}
-                        onChange={(lat, lon) => { setLocLat(lat); setLocLon(lon) }}
+            {/* Default location section */}
+            <div style={{ borderTop: '1px solid var(--border)', paddingTop: '40px', marginBottom: '24px' }}>
+                <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '18px', fontWeight: 400, color: 'var(--text-primary)', marginBottom: '8px' }}>
+                    Default Location
+                </h2>
+                <p style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                    Pre-filled on every new entry. Leave blank to skip.
+                </p>
+            </div>
+            <div style={{ maxWidth: '480px', display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '48px' }}>
+                <MapPicker
+                    lat={locLat}
+                    lon={locLon}
+                    onChange={(lat, lon) => { setLocLat(lat); setLocLon(lon) }}
+                />
+                <Field
+                    label="Location name"
+                    placeholder="Hamburg, Germany"
+                    value={locName}
+                    onChange={setLocName}
+                />
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <Field label="Latitude"  placeholder="53.550341"  value={locLat} onChange={setLocLat} />
+                    <Field label="Longitude" placeholder="10.000654" value={locLon} onChange={setLocLon} />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <ActionButton
+                        label="Save location"
+                        onClick={handleSaveLocation}
+                        disabled={false}
+                        variant="primary"
                     />
-
-                    <Field
-                        label="Location name"
-                        placeholder="Hamburg, Germany"
-                        value={locName}
-                        onChange={setLocName}
-                    />
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                        <Field label="Latitude"  placeholder="53.550341"  value={locLat} onChange={setLocLat} />
-                        <Field label="Longitude" placeholder="10.000654" value={locLon} onChange={setLocLon} />
-                    </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <ActionButton
-                            label="Save location"
-                            onClick={handleSaveLocation}
-                            disabled={false}
-                            variant="primary"
-                        />
-                        {locSaved && (
-                            <span style={{ fontSize: '12px', color: '#70c070' }}>Saved</span>
-                        )}
-                    </div>
+                    {locSaved && (
+                        <span style={{ fontSize: '12px', color: '#70c070' }}>Saved</span>
+                    )}
                 </div>
             </div>
 

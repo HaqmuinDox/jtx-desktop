@@ -51,6 +51,17 @@
     --shadow-md: 0 4px 12px rgba(0,0,0,0.12);
 }
 
+/* ── Animations ───────────────────────────────────────────────────────────── */
+@keyframes slideInFromRight {
+    from { opacity: 0; transform: translateX(20px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slideOutToRight {
+    from { opacity: 1; transform: translateX(0); }
+    to   { opacity: 0; transform: translateX(20px); }
+}
+
 /* ── Reset ────────────────────────────────────────────────────────────────── */
 *, *::before, *::after {
     box-sizing: border-box;

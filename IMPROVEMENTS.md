@@ -12,6 +12,11 @@ Items are grouped by priority. Agents assigned in parentheses where applicable.
 - [x] **Formatting toolbar** — Tiptap bubble menu for Bold, Italic, H2, H3, Bullet/Ordered lists *(Agent 1)*
 - [x] **Native Electron menu bar** — File / Edit / View / Help menus with keyboard shortcuts *(Agent 3)*
 - [x] **Inline task complete** — Check off tasks directly from the list without opening detail panel *(Agent 2)*
+- [x] **Wire up missing keyboard shortcuts** — Ctrl+Shift+J/N/T, Ctrl+F (focus search), Ctrl+Shift+S (sync now) wired in App.tsx
+- [x] **Replace `window.confirm` delete dialog** — Inline styled confirmation banner in EntryDetail replaces the native OS dialog
+- [ ] **Collections sidebar: click-to-filter** — Collections are now interactive buttons; clicking filters the active view, clicking again clears the filter; active collection highlighted with accent left-border
+- [x] **List rows: keyboard accessibility** — JournalRow, NoteCard, NoteListRow, TodoRow, SubtaskRow all have `role="button"`, `tabIndex={0}`, and `onKeyDown` Enter/Space handlers
+- [x] **FormField: associate labels with inputs** — `FormField` now accepts `htmlFor` and renders a `<label>`; all EditForm fields have matching `id` attributes
 
 ## Medium Priority
 
@@ -25,6 +30,13 @@ Items are grouped by priority. Agents assigned in parentheses where applicable.
 - [x] **Settings restructure** — Appearance section (theme/accent/font) and Nextcloud Sync section with distinct headings *(Agent 5)*
 - [x] **Sync interval setting** — 5/10/15/30/60 min buttons in Settings; persisted and applied live
 - [x] **Filter controls for tasks** — Multi-select status, priority (group + individual chips), due/start date range, tag filter; active count badge *(Agent 2)*
+- [x] **Raw iCal fields: human-friendly UI** — RRULE replaced with Google Calendar-style editor (interval + freq, weekday toggles for weekly, monthly-on dropdown, Never/On/After end section); exdate replaced with date pickers; view mode shows human-readable recurrence text
+- [x] **Search scope indicator** — "Searching in Journals/Notes/Tasks" label appears below the search box whenever a query is active
+- [x] **List row click: don't toggle** — Clicking an already-selected row now keeps the detail panel open (removed toggle-deselect behavior from all three views)
+- [x] **Priority indicator for all levels in task list** — Priority dot now shown for all 9 levels; size and opacity encode level (6px/full for high, 5px/70% for medium, 4px/45% for low)
+- [x] **Fix comment placeholder** — Updated to "Short note or annotation" (removed the inaccurate "visible in list views" claim)
+- [x] **Date picker `colorScheme`** — Removed hardcoded `colorScheme: 'dark'` from TodosView date filter; native picker now inherits theme
+- [x] **Status badge human-readable labels** — StatusBadge now maps to "Completed", "In Progress", "Needs Action", "Cancelled", "Draft", "Final"
 
 ## Low Priority
 
@@ -38,12 +50,21 @@ Items are grouped by priority. Agents assigned in parentheses where applicable.
 - [x] **About / version info** — About section at the bottom of Settings; shows app name, version (from package.json), and author
 - [ ] **Autosave + inline editing** — Hard Edit/Save/Cancel cycle; professional apps autosave *(moved to Not in scope — requires rearchitecting EntryDetail)*
 - [x] **Custom window titlebar** — Frameless window (`frame: false`); custom 32px TitleBar component with drag region, "JTX Desktop" label, and Win11-style min/max/close buttons; maximize state synced via IPC events
+- [x] **Detail panel open/close animation** — Panel slides in from the right on open and slides out on close (220ms cubic-bezier), consistent with sidebar transitions
+- [x] **Subtask toggle: non-leaf feedback** — Toggle circle on non-leaf subtasks now shows `cursor: default`, 50% opacity, and a tooltip explaining completion is derived from children
+- [x] **Body preview: improve markdown strip** — Regex now strips heading markers, brackets, list prefixes, and collapses newlines; preview text is clean prose
+- [x] **Hide hex color value in view mode** — Entry color in view mode now shows "Color" label next to the swatch instead of the raw hex string
+- [x] **Filter panel animation** — TodosView filter panel expands/collapses with a smooth max-height + opacity transition (240ms)
+- [x] **Progress bar ARIA** — Both progress bars now have `role="progressbar"`, `aria-valuenow`, `aria-valuemin={0}`, `aria-valuemax={100}`, `aria-label`
+- [x] **Shared NewButton / Empty components** — Extracted to `src/components/shared.tsx`; all three views import from there; drift eliminated
+- [x] **Save/Create loading state** — `minWidth` added to Save/Create `HeaderButton` so width stays stable when label changes to "…"
+- [x] **Empty state: add clear action** — "Clear search" and "Clear filters" buttons now appear in all three views when search/filter yields no results
+- [x] **Move default location out of sync section** — Default location picker is embedded inside the Nextcloud sync form; it is a general app preference and should be its own section
 
 ---
 
 ## Not in scope (this iteration)
 
-- [ ] Autosave / inline editing (requires rearchitecting EntryDetail)
 - [x] Resizable panel drag handles (complex drag-to-resize logic)
 - [x] Collections tree in sidebar (needs IPC handlers for `entry_links` table first)
 - [x] Custom frameless titlebar (Windows-specific drag-region complexity)

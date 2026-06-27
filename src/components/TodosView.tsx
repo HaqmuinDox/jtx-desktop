@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useAppStore } from '../store/app.ts'
 import type { Entry } from '../../shared/types'
+import { NewButton, Empty } from './shared'
 
 const STATUS_PROGRESS: Record<string, number> = {
     'NEEDS-ACTION': 0,
@@ -47,6 +48,13 @@ function priorityColor(key: PriorityKey): string {
     return 'var(--text-muted)'
 }
 
+function priorityLabel(p: number | null | undefined): string {
+    if (!p) return 'No priority'
+    if (p <= 3) return 'High priority'
+    if (p <= 6) return 'Medium priority'
+    return 'Low priority'
+}
+
 const btnBase: React.CSSProperties = {
     background:   'transparent',
     border:       '1px solid var(--border)',
@@ -64,7 +72,7 @@ const btnActive: React.CSSProperties = {
 }
 
 export function TodosView() {
-    const { entries, selectedEntry, setSelectedEntry, setCreatingType, searchQuery } = useAppStore()
+    const { entries, selectedEntry, setSelectedEntry, setCreatingType, searchQuery, setSearchQuery, filterCollection } = useAppStore()
 
     const [sortBy, setSortBy] = useState<'priority' | 'due' | 'alpha' | 'updated'>(
         () => (localStorage.getItem('jtx_todos_sort') as 'priority' | 'due' | 'alpha' | 'updated' | null) ?? 'priority'
@@ -119,7 +127,7 @@ export function TodosView() {
     )
 
     const todos = entries
-        .filter(e => e.type === 'todo' && !e.parent_uid)
+        .filter(e => e.type === 'todo' && !e.parent_uid && (!filterCollection || e.collection === filterCollection))
         .sort((a, b) => {
             let result
             if (sortBy === 'priority') {
@@ -248,6 +256,7 @@ export function TodosView() {
                 title="No tasks yet"
                 subtitle="Tasks from jtx Board will appear here after syncing"
                 onNew={() => setCreatingType('todo')}
+                newLabel="+ New task"
             />
         )
     }
@@ -334,13 +343,18 @@ export function TodosView() {
             </div>
 
             {/* Filter panel */}
-            {showFilters && (
-                <div style={{
+            <div style={{
+                maxHeight:  showFilters ? '600px' : '0',
+                opacity:    showFilters ? 1 : 0,
+                overflow:   'hidden',
+                transition: 'max-height 0.24s ease, opacity 0.18s ease, margin-bottom 0.24s ease',
+                marginBottom: showFilters ? '24px' : '0',
+            }}>
+            <div style={{
                     display:      'flex',
                     gap:          '20px',
                     flexWrap:     'wrap',
                     alignItems:   'flex-start',
-                    marginBottom: '24px',
                     padding:      '14px 16px',
                     background:   'var(--bg-surface)',
                     borderRadius: 'var(--radius-md)',
@@ -495,11 +509,23 @@ export function TodosView() {
                         </button>
                     )}
                 </div>
-            )}
+            </div>
 
             {filteredTodos.length === 0 ? (
-                <div style={{ padding: '60px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
-                    {searchQuery ? `No results for "${searchQuery}"` : 'No tasks match the current filters'}
+                <div style={{ padding: '60px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+                    <div>{searchQuery ? `No results for "${searchQuery}"` : 'No tasks match the current filters'}</div>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                        {searchQuery && (
+                            <button onClick={() => setSearchQuery('')} style={{ background: 'transparent', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', color: 'var(--text-muted)', fontSize: '12px', fontFamily: 'var(--font-ui)', padding: '4px 12px', cursor: 'pointer' }}>
+                                Clear search
+                            </button>
+                        )}
+                        {activeFilterCount > 0 && (
+                            <button onClick={() => { persistPriorities(new Set()); persistTags([]); persistStatuses(ALL_STATUSES); persistDue('<=', ''); persistStart('<=', '') }} style={{ background: 'transparent', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', color: 'var(--text-muted)', fontSize: '12px', fontFamily: 'var(--font-ui)', padding: '4px 12px', cursor: 'pointer' }}>
+                                Clear filters
+                            </button>
+                        )}
+                    </div>
                 </div>
             ) : (
                 STATUS_GROUPS.map(({ status, label, color }) => {
@@ -530,9 +556,7 @@ export function TodosView() {
                                         key={entry.id}
                                         entry={entry}
                                         isSelected={selectedEntry?.id === entry.id}
-                                        onClick={() => setSelectedEntry(
-                                            selectedEntry?.id === entry.id ? null : entry
-                                        )}
+                                        onClick={() => setSelectedEntry(entry)}
                                         subtasks={subtasks.filter(s => s.parent_uid === entry.id)}
                                     />
                                 ))}
@@ -600,7 +624,6 @@ function DateFilter({ op, date, onChange }: {
                     fontFamily:  'var(--font-ui)',
                     padding:     '2px 6px',
                     cursor:      'pointer',
-                    colorScheme: 'dark',
                 } as React.CSSProperties}
             />
             {date && (
@@ -657,7 +680,11 @@ function TodoRow({
 
     return (
         <div
+            role="button"
+            tabIndex={0}
             onClick={onClick}
+            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } }}
+            aria-pressed={isSelected}
             style={{
                 display:    'flex',
                 alignItems: 'flex-start',
@@ -729,18 +756,15 @@ function TodoRow({
                         {entry.title || 'Untitled'}
                     </span>
 
-                    {/* Priority dot */}
-                    {entry.priority && entry.priority <= 3 && !isDone && (
-                        <div style={{
-                            width:        '6px',
-                            height:       '6px',
+                    {/* Priority dot — size encodes level: high=6px, medium=5px, low=4px */}
+                    {entry.priority != null && entry.priority > 0 && !isDone && (
+                        <div title={priorityLabel(entry.priority)} style={{
+                            width:        entry.priority <= 3 ? '6px' : entry.priority <= 6 ? '5px' : '4px',
+                            height:       entry.priority <= 3 ? '6px' : entry.priority <= 6 ? '5px' : '4px',
                             borderRadius: '50%',
-                            background:   entry.priority === 1
-                                ? '#c04040'
-                                : entry.priority === 2
-                                    ? '#c08040'
-                                    : 'var(--accent)',
-                            flexShrink: 0,
+                            background:   priorityColor(String(entry.priority) as PriorityKey),
+                            flexShrink:   0,
+                            opacity:      entry.priority <= 3 ? 1 : entry.priority <= 6 ? 0.7 : 0.45,
                         }} />
                     )}
 
@@ -760,7 +784,7 @@ function TodoRow({
                 {(() => {
                     const pct = computeProgress(entry.status, subtasks)
                     return pct > 0 ? (
-                        <div style={{
+                        <div role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Task progress" style={{
                             height:       '2px',
                             background:   'var(--border)',
                             borderRadius: '1px',
@@ -801,60 +825,3 @@ function TodoRow({
     )
 }
 
-function NewButton({ onClick }: { onClick: () => void }) {
-    return (
-        <button onClick={onClick} style={{
-            background:   'var(--accent-glow)',
-            border:       '1px solid var(--accent-dim)',
-            borderRadius: 'var(--radius-sm)',
-            color:        'var(--accent)',
-            fontSize:     '20px',
-            lineHeight:   1,
-            padding:      '1px 10px 3px',
-            cursor:       'pointer',
-            fontFamily:   'var(--font-ui)',
-        }}>+</button>
-    )
-}
-
-function Empty({ icon, title, subtitle, onNew }: {
-    icon: string; title: string; subtitle: string; onNew?: () => void
-}) {
-    return (
-        <div style={{
-            flex:           1,
-            display:        'flex',
-            flexDirection:  'column',
-            alignItems:     'center',
-            justifyContent: 'center',
-            gap:            '12px',
-            color:          'var(--text-muted)',
-            padding:        '60px',
-        }}>
-            <div style={{ fontSize: '40px', opacity: 0.4 }}>{icon}</div>
-            <div style={{
-                fontFamily: 'var(--font-display)',
-                fontSize:   '18px',
-                color:      'var(--text-secondary)',
-            }}>
-                {title}
-            </div>
-            <div style={{ fontSize: '13px', textAlign: 'center', maxWidth: '280px' }}>
-                {subtitle}
-            </div>
-            {onNew && (
-                <button onClick={onNew} style={{
-                    marginTop:    '8px',
-                    background:   'var(--accent-glow)',
-                    border:       '1px solid var(--accent-dim)',
-                    borderRadius: 'var(--radius-md)',
-                    color:        'var(--accent)',
-                    fontSize:     '13px',
-                    fontFamily:   'var(--font-ui)',
-                    padding:      '8px 20px',
-                    cursor:       'pointer',
-                }}>+ New task</button>
-            )}
-        </div>
-    )
-}

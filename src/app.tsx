@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useAppStore } from './store/app.ts'
 import { Sidebar } from './components/Sidebar'
 import { JournalsView } from './components/JournalsView'
@@ -90,6 +90,28 @@ function DetailResizeHandle() {
 export default function App() {
     const { activeSection, selectedEntry, creatingType, setEntries, setDeviceLocation, setActiveSection, setCreatingType, setSelectedEntry, setIsSyncing, setLastSynced } = useAppStore()
 
+    // Detail panel mount/unmount with enter + exit animation
+    const shouldShowDetail = selectedEntry !== null || creatingType !== null
+    const [detailMounted, setDetailMounted] = useState(shouldShowDetail)
+    const [detailClosing, setDetailClosing] = useState(false)
+    const prevShouldShow = useRef(shouldShowDetail)
+
+    useEffect(() => {
+        if (shouldShowDetail && !prevShouldShow.current) {
+            setDetailMounted(true)
+            setDetailClosing(false)
+        } else if (!shouldShowDetail && prevShouldShow.current) {
+            setDetailClosing(true)
+            const t = setTimeout(() => {
+                setDetailMounted(false)
+                setDetailClosing(false)
+            }, 200)
+            prevShouldShow.current = false
+            return () => clearTimeout(t)
+        }
+        prevShouldShow.current = shouldShowDetail
+    }, [shouldShowDetail])
+
     // Restore persisted detail panel width
     useEffect(() => {
         const dw = localStorage.getItem('jtx_detail_width')
@@ -135,12 +157,33 @@ export default function App() {
             if (e.ctrlKey && e.key === '1') { e.preventDefault(); setActiveSection('journals') }
             if (e.ctrlKey && e.key === '2') { e.preventDefault(); setActiveSection('notes') }
             if (e.ctrlKey && e.key === '3') { e.preventDefault(); setActiveSection('todos') }
+            if (e.ctrlKey && e.shiftKey && e.key === 'J') { e.preventDefault(); setActiveSection('journals'); setCreatingType('journal') }
+            if (e.ctrlKey && e.shiftKey && e.key === 'N') { e.preventDefault(); setActiveSection('notes');    setCreatingType('note') }
+            if (e.ctrlKey && e.shiftKey && e.key === 'T') { e.preventDefault(); setActiveSection('todos');    setCreatingType('todo') }
             if (e.ctrlKey && e.key === 'n') {
                 e.preventDefault()
                 const section = useAppStore.getState().activeSection
                 if (section === 'journals') setCreatingType('journal')
                 else if (section === 'notes') setCreatingType('note')
                 else if (section === 'todos') setCreatingType('todo')
+            }
+            if (e.ctrlKey && e.key === 'f') {
+                e.preventDefault()
+                // Focus the sidebar search input
+                const searchInput = document.querySelector<HTMLInputElement>('input[type="search"]')
+                searchInput?.focus()
+                searchInput?.select()
+            }
+            if (e.ctrlKey && e.shiftKey && e.key === 'S') {
+                e.preventDefault()
+                setIsSyncing(true)
+                window.api.sync.now()
+                    .then(result => {
+                        if (result.last_synced_at) setLastSynced(result.last_synced_at)
+                        return window.api.entries.getAll()
+                    })
+                    .then(setEntries)
+                    .finally(() => setIsSyncing(false))
             }
             if (e.key === 'Escape') {
                 setSelectedEntry(null)
@@ -187,11 +230,17 @@ export default function App() {
                     {mainContent()}
                 </main>
 
-                {(selectedEntry || creatingType) && (
-                    <>
+                {detailMounted && (
+                    <div style={{
+                        display:   'flex',
+                        flexShrink: 0,
+                        animation: detailClosing
+                            ? 'slideOutToRight 0.2s cubic-bezier(0.4, 0, 1, 1) forwards'
+                            : 'slideInFromRight 0.22s cubic-bezier(0.4, 0, 0.2, 1)',
+                    }}>
                         <DetailResizeHandle />
                         <EntryDetail />
-                    </>
+                    </div>
                 )}
             </div>
 

@@ -1,15 +1,16 @@
 import { useState } from 'react'
 import { useAppStore } from '../store/app.ts'
 import type { Entry } from '../../shared/types'
+import { NewButton, Empty } from './shared'
 
 export function JournalsView() {
-    const { entries, selectedEntry, setSelectedEntry, setCreatingType, searchQuery } = useAppStore()
+    const { entries, selectedEntry, setSelectedEntry, setCreatingType, searchQuery, setSearchQuery, filterCollection } = useAppStore()
     const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>(
         () => (localStorage.getItem('jtx_journals_sort') as 'newest' | 'oldest' | null) ?? 'newest'
     )
 
     const journals = entries
-        .filter(e => e.type === 'journal')
+        .filter(e => e.type === 'journal' && (!filterCollection || e.collection === filterCollection))
         .sort((a, b) => {
             const dateA = a.start_date ?? a.created_at
             const dateB = b.start_date ?? b.created_at
@@ -41,14 +42,18 @@ export function JournalsView() {
                 title="No journal entries yet"
                 subtitle="Entries from jtx Board will appear here after syncing"
                 onNew={() => setCreatingType('journal')}
+                newLabel="+ New entry"
             />
         )
     }
 
     if (filteredJournals.length === 0) {
         return (
-            <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
-                No results for "{searchQuery}"
+            <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+                <div>No results for "{searchQuery}"</div>
+                <button onClick={() => setSearchQuery('')} style={{ background: 'transparent', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', color: 'var(--text-muted)', fontSize: '12px', fontFamily: 'var(--font-ui)', padding: '4px 12px', cursor: 'pointer' }}>
+                    Clear search
+                </button>
             </div>
         )
     }
@@ -125,9 +130,7 @@ export function JournalsView() {
                                 key={entry.id}
                                 entry={entry}
                                 isSelected={selectedEntry?.id === entry.id}
-                                onClick={() => setSelectedEntry(
-                                    selectedEntry?.id === entry.id ? null : entry
-                                )}
+                                onClick={() => setSelectedEntry(entry)}
                             />
                         ))}
                     </div>
@@ -176,7 +179,11 @@ function JournalRow({
 
     return (
         <div
+            role="button"
+            tabIndex={0}
             onClick={onClick}
+            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } }}
+            aria-pressed={isSelected}
             style={{
                 display:       'flex',
                 alignItems:    'flex-start',
@@ -246,7 +253,7 @@ function JournalRow({
                     }}
                          className="truncate"
                     >
-                        {entry.body.replace(/[#*`_]/g, '').slice(0, 120)}
+                        {entry.body.replace(/^#{1,6}\s+/gm, '').replace(/[*`_~[\]()>]/g, '').replace(/^\s*[-*+\d.]+\s+/gm, '').replace(/\n+/g, ' ').trim().slice(0, 120)}
                     </div>
                 )}
 
@@ -275,60 +282,3 @@ function JournalRow({
     )
 }
 
-function NewButton({ onClick }: { onClick: () => void }) {
-    return (
-        <button onClick={onClick} style={{
-            background:   'var(--accent-glow)',
-            border:       '1px solid var(--accent-dim)',
-            borderRadius: 'var(--radius-sm)',
-            color:        'var(--accent)',
-            fontSize:     '20px',
-            lineHeight:   1,
-            padding:      '1px 10px 3px',
-            cursor:       'pointer',
-            fontFamily:   'var(--font-ui)',
-        }}>+</button>
-    )
-}
-
-function Empty({ icon, title, subtitle, onNew }: {
-    icon: string; title: string; subtitle: string; onNew?: () => void
-}) {
-    return (
-        <div style={{
-            flex:           1,
-            display:        'flex',
-            flexDirection:  'column',
-            alignItems:     'center',
-            justifyContent: 'center',
-            gap:            '12px',
-            color:          'var(--text-muted)',
-            padding:        '60px',
-        }}>
-            <div style={{ fontSize: '40px', opacity: 0.4 }}>{icon}</div>
-            <div style={{
-                fontFamily: 'var(--font-display)',
-                fontSize:   '18px',
-                color:      'var(--text-secondary)',
-            }}>
-                {title}
-            </div>
-            <div style={{ fontSize: '13px', textAlign: 'center', maxWidth: '280px' }}>
-                {subtitle}
-            </div>
-            {onNew && (
-                <button onClick={onNew} style={{
-                    marginTop:    '8px',
-                    background:   'var(--accent-glow)',
-                    border:       '1px solid var(--accent-dim)',
-                    borderRadius: 'var(--radius-md)',
-                    color:        'var(--accent)',
-                    fontSize:     '13px',
-                    fontFamily:   'var(--font-ui)',
-                    padding:      '8px 20px',
-                    cursor:       'pointer',
-                }}>+ New entry</button>
-            )}
-        </div>
-    )
-}

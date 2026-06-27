@@ -151,16 +151,19 @@ app.on('activate', () => {
 })
 
 app.whenReady().then(async () => {
-    session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
-        callback({
-            responseHeaders: {
-                ...details.responseHeaders,
-                'Content-Security-Policy': [
-                    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.tile.openstreetmap.org; connect-src 'self' https:; font-src 'self' data:; object-src 'none'; base-uri 'self';"
-                ],
-            },
+    // Only enforce CSP in production — Vite dev server needs 'unsafe-eval' for HMR/source maps
+    if (!VITE_DEV_SERVER_URL) {
+        session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+            callback({
+                responseHeaders: {
+                    ...details.responseHeaders,
+                    'Content-Security-Policy': [
+                        "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.tile.openstreetmap.org; connect-src 'self' https:; font-src 'self' data:; object-src 'none'; base-uri 'self';"
+                    ],
+                },
+            })
         })
-    })
+    }
 
     getDb()
     registerIpcHandlers()

@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { useAppStore } from '../store/app.ts'
 import type { Entry } from '../../shared/types'
+import { NewButton, Empty } from './shared'
 
 export function NotesView() {
-    const { entries, selectedEntry, setSelectedEntry, setCreatingType, searchQuery } = useAppStore()
+    const { entries, selectedEntry, setSelectedEntry, setCreatingType, searchQuery, setSearchQuery, filterCollection } = useAppStore()
     const [sortOrder, setSortOrder] = useState<'updated' | 'created' | 'alpha'>(
         () => (localStorage.getItem('jtx_notes_sort') as 'updated' | 'created' | 'alpha' | null) ?? 'updated'
     )
@@ -12,7 +13,7 @@ export function NotesView() {
     )
 
     const notes = entries
-        .filter(e => e.type === 'note')
+        .filter(e => e.type === 'note' && (!filterCollection || e.collection === filterCollection))
         .sort((a, b) => {
             if (sortOrder === 'updated') return b.updated_at.localeCompare(a.updated_at)
             if (sortOrder === 'created') return b.created_at.localeCompare(a.created_at)
@@ -33,14 +34,18 @@ export function NotesView() {
                 title="No notes yet"
                 subtitle="Floating notes from jtx Board will appear here after syncing"
                 onNew={() => setCreatingType('note')}
+                newLabel="+ New note"
             />
         )
     }
 
     if (filteredNotes.length === 0) {
         return (
-            <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
-                No results for "{searchQuery}"
+            <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+                <div>No results for "{searchQuery}"</div>
+                <button onClick={() => setSearchQuery('')} style={{ background: 'transparent', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', color: 'var(--text-muted)', fontSize: '12px', fontFamily: 'var(--font-ui)', padding: '4px 12px', cursor: 'pointer' }}>
+                    Clear search
+                </button>
             </div>
         )
     }
@@ -138,9 +143,7 @@ export function NotesView() {
                             key={note.id}
                             note={note}
                             isSelected={selectedEntry?.id === note.id}
-                            onClick={() => setSelectedEntry(
-                                selectedEntry?.id === note.id ? null : note
-                            )}
+                            onClick={() => setSelectedEntry(note)}
                         />
                     ))}
                 </div>
@@ -152,9 +155,7 @@ export function NotesView() {
                             key={note.id}
                             note={note}
                             isSelected={selectedEntry?.id === note.id}
-                            onClick={() => setSelectedEntry(
-                                selectedEntry?.id === note.id ? null : note
-                            )}
+                            onClick={() => setSelectedEntry(note)}
                         />
                     ))}
                 </div>
@@ -173,7 +174,7 @@ function NoteCard({
     const tags: string[] = (() => { try { return note.categories ? JSON.parse(note.categories) : [] } catch { return [] } })()
 
     const preview = note.body
-        ? note.body.replace(/[#*`_]/g, '').slice(0, 180)
+        ? note.body.replace(/^#{1,6}\s+/gm, '').replace(/[*`_~[\]()>]/g, '').replace(/^\s*[-*+\d.]+\s+/gm, '').replace(/\n+/g, ' ').trim().slice(0, 180)
         : null
 
     const date = new Date(note.updated_at)
@@ -183,7 +184,11 @@ function NoteCard({
 
     return (
         <div
+            role="button"
+            tabIndex={0}
             onClick={onClick}
+            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } }}
+            aria-pressed={isSelected}
             style={{
                 background:   isSelected ? 'var(--bg-active)' : 'var(--bg-raised)',
                 border:       isSelected
@@ -312,7 +317,11 @@ function NoteListRow({
 
     return (
         <div
+            role="button"
+            tabIndex={0}
             onClick={onClick}
+            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } }}
+            aria-pressed={isSelected}
             style={{
                 display:      'flex',
                 alignItems:   'flex-start',
@@ -379,7 +388,7 @@ function NoteListRow({
                     }}
                          className="truncate"
                     >
-                        {note.body.replace(/[#*`_]/g, '').slice(0, 120)}
+                        {note.body.replace(/^#{1,6}\s+/gm, '').replace(/[*`_~[\]()>]/g, '').replace(/^\s*[-*+\d.]+\s+/gm, '').replace(/\n+/g, ' ').trim().slice(0, 120)}
                     </div>
                 )}
                 {tags.length > 0 && (
@@ -407,60 +416,3 @@ function NoteListRow({
     )
 }
 
-function NewButton({ onClick }: { onClick: () => void }) {
-    return (
-        <button onClick={onClick} style={{
-            background:   'var(--accent-glow)',
-            border:       '1px solid var(--accent-dim)',
-            borderRadius: 'var(--radius-sm)',
-            color:        'var(--accent)',
-            fontSize:     '20px',
-            lineHeight:   1,
-            padding:      '1px 10px 3px',
-            cursor:       'pointer',
-            fontFamily:   'var(--font-ui)',
-        }}>+</button>
-    )
-}
-
-function Empty({ icon, title, subtitle, onNew }: {
-    icon: string; title: string; subtitle: string; onNew?: () => void
-}) {
-    return (
-        <div style={{
-            flex:           1,
-            display:        'flex',
-            flexDirection:  'column',
-            alignItems:     'center',
-            justifyContent: 'center',
-            gap:            '12px',
-            color:          'var(--text-muted)',
-            padding:        '60px',
-        }}>
-            <div style={{ fontSize: '40px', opacity: 0.4 }}>{icon}</div>
-            <div style={{
-                fontFamily: 'var(--font-display)',
-                fontSize:   '18px',
-                color:      'var(--text-secondary)',
-            }}>
-                {title}
-            </div>
-            <div style={{ fontSize: '13px', textAlign: 'center', maxWidth: '280px' }}>
-                {subtitle}
-            </div>
-            {onNew && (
-                <button onClick={onNew} style={{
-                    marginTop:    '8px',
-                    background:   'var(--accent-glow)',
-                    border:       '1px solid var(--accent-dim)',
-                    borderRadius: 'var(--radius-md)',
-                    color:        'var(--accent)',
-                    fontSize:     '13px',
-                    fontFamily:   'var(--font-ui)',
-                    padding:      '8px 20px',
-                    cursor:       'pointer',
-                }}>+ New note</button>
-            )}
-        </div>
-    )
-}

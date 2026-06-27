@@ -51,7 +51,7 @@ export function TitleBar() {
         return () => window.removeEventListener('keydown', onKey)
     }, [])
 
-    const btnBase: React.CSSProperties = {
+    const btnBase = {
         display:        'flex',
         alignItems:     'center',
         justifyContent: 'center',
@@ -61,10 +61,10 @@ export function TitleBar() {
         background:     'transparent',
         color:          'var(--text-secondary)',
         cursor:         'pointer',
-        WebkitAppRegion: 'no-drag' as never,
+        WebkitAppRegion: 'no-drag',
         flexShrink:     0,
         transition:     'background 0.1s, color 0.1s',
-    }
+    } as React.CSSProperties
 
     return (
         <>
@@ -75,10 +75,10 @@ export function TitleBar() {
             alignItems:      'center',
             background:      'var(--bg-surface)',
             borderBottom:    '1px solid var(--border)',
-            WebkitAppRegion: 'drag' as never,
+            WebkitAppRegion: 'drag',
             flexShrink:      0,
             userSelect:      'none',
-        }}>
+        } as React.CSSProperties}>
             <span style={{
                 paddingLeft:  12,
                 fontSize:     12,

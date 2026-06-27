@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { MapPin, Link, User, Map, Timer, Bell } from 'lucide-react'
 import {DeviceLocation, useAppStore} from '../store/app'
@@ -206,6 +206,7 @@ export function EntryDetail() {
     const [isEditing, setIsEditing] = useState(false)
     const [editState, setEditState] = useState<EditState | null>(null)
     const [saving,    setSaving]    = useState(false)
+    const [confirmingDelete, setConfirmingDelete] = useState(false)
     const [collections, setCollections] = useState<{ url: string; display_name: string | null }[]>([])
     const [selectedCollection, setSelectedCollection] = useState('')
 
@@ -264,9 +265,9 @@ export function EntryDetail() {
         setEditState(null)
     }
 
-    const handleDelete = async () => {
+    const handleDeleteConfirmed = async () => {
         if (!selectedEntry) return
-        if (!window.confirm(`Delete "${selectedEntry.title || 'Untitled'}"? This will be removed from Nextcloud on the next sync.`)) return
+        setConfirmingDelete(false)
         const parentUid = selectedEntry.parent_uid
         const entryType = selectedEntry.type
         await window.api.entries.delete(selectedEntry.id)
@@ -503,23 +504,46 @@ export function EntryDetail() {
                 <div style={{ display: 'flex', gap: '5px', flexShrink: 0 }}>
                     {isCreating ? (
                         <>
-                            <HeaderButton label={saving ? '…' : 'Create'} onClick={handleCreate} accent disabled={!selectedCollection || saving} ariaLabel="Create entry" />
+                            <HeaderButton label={saving ? '…' : 'Create'} minWidth="48px" onClick={handleCreate} accent disabled={!selectedCollection || saving} ariaLabel="Create entry" />
                             <HeaderButton label="Cancel" onClick={handleClose} ariaLabel="Discard changes" />
                         </>
                     ) : isEditing ? (
                         <>
-                            <HeaderButton label={saving ? '…' : 'Save'} onClick={handleSave} accent ariaLabel="Save changes" />
+                            <HeaderButton label={saving ? '…' : 'Save'} minWidth="40px" onClick={handleSave} accent ariaLabel="Save changes" />
                             <HeaderButton label="Cancel" onClick={handleCancel} ariaLabel="Discard changes" />
                         </>
                     ) : (
                         <>
                             <HeaderButton label="Edit" onClick={handleEdit} ariaLabel="Edit entry" />
-                            <HeaderButton label="Delete" onClick={handleDelete} danger ariaLabel="Delete entry" />
+                            <HeaderButton label="Delete" onClick={() => setConfirmingDelete(true)} danger ariaLabel="Delete entry" />
                         </>
                     )}
                     <HeaderButton label="×" onClick={handleClose} ariaLabel="Close" />
                 </div>
             </div>
+
+            {/* Delete confirmation banner */}
+            {confirmingDelete && selectedEntry && (
+                <div style={{
+                    padding:      '10px 20px',
+                    background:   'rgba(192, 64, 64, 0.1)',
+                    borderBottom: '1px solid rgba(192, 64, 64, 0.3)',
+                    display:      'flex',
+                    alignItems:   'center',
+                    gap:          '10px',
+                    flexShrink:   0,
+                }}>
+                    <span style={{ flex: 1, fontSize: '12px', color: '#e07070' }}>
+                        Delete "{selectedEntry.title || 'Untitled'}"? This cannot be undone.
+                    </span>
+                    <button onClick={handleDeleteConfirmed} style={{ background: 'rgba(192,64,64,0.2)', border: '1px solid rgba(192,64,64,0.5)', borderRadius: 'var(--radius-sm)', color: '#e07070', fontSize: '12px', fontFamily: 'var(--font-ui)', padding: '3px 10px', cursor: 'pointer' }}>
+                        Delete
+                    </button>
+                    <button onClick={() => setConfirmingDelete(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', fontSize: '12px', fontFamily: 'var(--font-ui)', padding: '3px 8px', cursor: 'pointer' }}>
+                        Cancel
+                    </button>
+                </div>
+            )}
 
             {/* Body */}
             <div style={{
@@ -571,6 +595,7 @@ export function EntryDetail() {
                     <ViewMode
                         entry={selectedEntry}
                         subtasks={subtasks}
+                        allEntries={entries}
                         onAddSubtask={handleAddSubtask}
                         onSelectSubtask={setSelectedEntry}
                         onToggleSubtask={handleToggleSubtask}
@@ -583,9 +608,10 @@ export function EntryDetail() {
 
 // ── View mode ────────────────────────────────────────────────────────────────
 
-function ViewMode({ entry, subtasks, onAddSubtask, onSelectSubtask, onToggleSubtask }: {
+function ViewMode({ entry, subtasks, allEntries, onAddSubtask, onSelectSubtask, onToggleSubtask }: {
     entry:             Entry
     subtasks:          Entry[]
+    allEntries:        Entry[]
     onAddSubtask:      () => void
     onSelectSubtask:   (sub: Entry) => void
     onToggleSubtask:   (sub: Entry) => void
@@ -656,7 +682,7 @@ function ViewMode({ entry, subtasks, onAddSubtask, onSelectSubtask, onToggleSubt
                                     <span style={dateRowLabelStyle}>Progress</span>
                                     <span style={{ fontSize: '11px', color: 'var(--accent)', fontWeight: 500 }}>{pct}%</span>
                                 </div>
-                                <div style={{ height: '5px', background: 'var(--border)', borderRadius: '3px', overflow: 'hidden' }}>
+                                <div role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Progress" style={{ height: '5px', background: 'var(--border)', borderRadius: '3px', overflow: 'hidden' }}>
                                     <div style={{ height: '100%', width: `${pct}%`, background: 'var(--accent)', borderRadius: '3px', transition: 'width 0.3s ease' }} />
                                 </div>
                             </div>
@@ -735,7 +761,9 @@ function ViewMode({ entry, subtasks, onAddSubtask, onSelectSubtask, onToggleSubt
                     {entry.duration && (
                         <div style={detailRowStyle}>
                             <Timer size={13} style={detailIconStyle} />
-                            <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>{entry.duration}</span>
+                            <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                                {humanizeDuration(entry.duration) || entry.duration}
+                            </span>
                         </div>
                     )}
                     {entry.color && (
@@ -743,7 +771,7 @@ function ViewMode({ entry, subtasks, onAddSubtask, onSelectSubtask, onToggleSubt
                             <span style={{ flexShrink: 0, width: '18px', height: '13px', marginTop: '1px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                 <span style={{ width: '10px', height: '10px', minWidth: '10px', borderRadius: '50%', background: entry.color, border: '1px solid var(--border)' }} />
                             </span>
-                            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{entry.color}</span>
+                            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Color</span>
                         </div>
                     )}
                 </div>
@@ -761,6 +789,7 @@ function ViewMode({ entry, subtasks, onAddSubtask, onSelectSubtask, onToggleSubt
                             <SubtaskRow
                                 key={sub.id}
                                 subtask={sub}
+                                hasChildren={allEntries.some(e => e.parent_uid === sub.id && !e.deleted)}
                                 onClick={() => onSelectSubtask(sub)}
                                 onToggle={() => onToggleSubtask(sub)}
                             />
@@ -776,13 +805,19 @@ function ViewMode({ entry, subtasks, onAddSubtask, onSelectSubtask, onToggleSubt
             {(entry.rrule || exdates.length > 0) && (
                 <div style={{ borderTop: '1px solid var(--border)', paddingTop: '14px' }}>
                     <SectionLabel>Recurrence</SectionLabel>
-                    {entry.rrule && <code style={monoChipStyle}>{entry.rrule}</code>}
+                    {entry.rrule && (
+                        <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: exdates.length ? '8px' : '0' }}>
+                            {humanizeRrule(entry.rrule) || entry.rrule}
+                        </div>
+                    )}
                     {exdates.length > 0 && (
-                        <div style={{ marginTop: '6px' }}>
-                            <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Exceptions</span>
+                        <div style={{ marginTop: '4px' }}>
+                            <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Skipped occurrences</span>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginTop: '4px' }}>
                                 {exdates.map(d => (
-                                    <code key={d} style={monoChipStyle}>{new Date(d).toLocaleDateString()}</code>
+                                    <span key={d} style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                                        {new Date(d).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
+                                    </span>
                                 ))}
                             </div>
                         </div>
@@ -880,22 +915,22 @@ function EditForm({
             {/* Status / Classification / Color row */}
             <div style={{ display: 'grid', gridTemplateColumns: `${isTodo && hasSubtasks ? '' : '1fr '}1fr auto`, gap: '8px', alignItems: 'end' }}>
                 {!(isTodo && hasSubtasks) && (
-                    <FormField label="Status">
-                        <select value={state.status} onChange={set('status')} style={selectStyle}>
+                    <FormField label="Status" htmlFor="ef-status">
+                        <select id="ef-status" value={state.status} onChange={set('status')} style={selectStyle}>
                             {statusOptions.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                         </select>
                     </FormField>
                 )}
-                <FormField label="Classification">
-                    <select value={state.classification} onChange={set('classification')} style={selectStyle}>
+                <FormField label="Classification" htmlFor="ef-classification">
+                    <select id="ef-classification" value={state.classification} onChange={set('classification')} style={selectStyle}>
                         <option value="">None</option>
                         <option value="PUBLIC">Public</option>
                         <option value="PRIVATE">Private</option>
                         <option value="CONFIDENTIAL">Confidential</option>
                     </select>
                 </FormField>
-                <FormField label="Color">
-                    <input type="color" value={state.color} onChange={set('color')}
+                <FormField label="Color" htmlFor="ef-color">
+                    <input id="ef-color" type="color" value={state.color} onChange={set('color')}
                         style={{ width: '36px', height: '30px', padding: '2px', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-raised)', cursor: 'pointer' }}
                     />
                 </FormField>
@@ -904,31 +939,36 @@ function EditForm({
             {/* Dates */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                 {(isJournal || isTodo) && (
-                    <FormField label="Start date">
-                        <input type="datetime-local" value={state.start_date} onChange={set('start_date')} style={inputStyle} />
+                    <FormField label="Start date" htmlFor="ef-start-date">
+                        <input id="ef-start-date" type="datetime-local" value={state.start_date} onChange={set('start_date')} style={inputStyle} />
                     </FormField>
                 )}
                 {isTodo && (
-                    <FormField label="Due date">
-                        <input type="datetime-local" value={state.due_date} onChange={set('due_date')} style={inputStyle} />
+                    <FormField label="Due date" htmlFor="ef-due-date">
+                        <input id="ef-due-date" type="datetime-local" value={state.due_date} onChange={set('due_date')} style={inputStyle} />
                     </FormField>
                 )}
                 {isTodo && (
-                    <FormField label="Completed date">
-                        <input type="datetime-local" value={state.completed_date} onChange={set('completed_date')} style={inputStyle} />
+                    <FormField label="Completed date" htmlFor="ef-completed-date">
+                        <input id="ef-completed-date" type="datetime-local" value={state.completed_date} onChange={set('completed_date')} style={inputStyle} />
                     </FormField>
                 )}
                 {isTodo && (
-                    <FormField label="Duration">
-                        <input value={state.duration} onChange={set('duration')} placeholder="e.g. PT1H30M" style={inputStyle} />
+                    <FormField label="Duration" htmlFor="ef-duration">
+                        <input id="ef-duration" value={state.duration} onChange={set('duration')} placeholder="e.g. PT1H30M" style={inputStyle} />
+                        {state.duration && humanizeDuration(state.duration) && (
+                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px', fontStyle: 'italic' }}>
+                                {humanizeDuration(state.duration)}
+                            </div>
+                        )}
                     </FormField>
                 )}
             </div>
 
             {/* Priority (to-do only) */}
             {isTodo && (
-                <FormField label="Priority">
-                    <select value={state.priority} onChange={set('priority')} style={selectStyle}>
+                <FormField label="Priority" htmlFor="ef-priority">
+                    <select id="ef-priority" value={state.priority} onChange={set('priority')} style={selectStyle}>
                         {priorityOptions.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                     </select>
                 </FormField>
@@ -945,16 +985,16 @@ function EditForm({
             </FormField>
 
             {/* Comment */}
-            <FormField label="Comment">
-                <textarea value={state.comment} onChange={set('comment')} rows={2}
-                    placeholder="Short comment visible in list views"
+            <FormField label="Comment" htmlFor="ef-comment">
+                <textarea id="ef-comment" value={state.comment} onChange={set('comment')} rows={2}
+                    placeholder="Short note or annotation"
                     style={{ ...inputStyle, resize: 'vertical', fontFamily: 'var(--font-ui)' }}
                 />
             </FormField>
 
             {/* Categories */}
-            <FormField label="Tags (comma-separated)">
-                <input value={state.categories} onChange={set('categories')}
+            <FormField label="Tags (comma-separated)" htmlFor="ef-tags">
+                <input id="ef-tags" value={state.categories} onChange={set('categories')}
                     placeholder="work, personal, urgent" style={inputStyle} />
                 {(() => {
                     const active = new Set(
@@ -1008,41 +1048,44 @@ function EditForm({
             </FormField>
 
             {/* Location / URL */}
-            <FormField label="Location">
-                <input value={state.location} onChange={set('location')} placeholder="Address or place name" style={inputStyle} />
+            <FormField label="Location" htmlFor="ef-location">
+                <input id="ef-location" value={state.location} onChange={set('location')} placeholder="Address or place name" style={inputStyle} />
             </FormField>
-            <FormField label="URL">
-                <input type="url" value={state.url} onChange={set('url')} placeholder="https://…" style={inputStyle} />
+            <FormField label="URL" htmlFor="ef-url">
+                <input id="ef-url" type="url" value={state.url} onChange={set('url')} placeholder="https://…" style={inputStyle} />
             </FormField>
 
             {/* Contact */}
-            <FormField label="Contact">
-                <input value={state.contact} onChange={set('contact')} placeholder="Name or email" style={inputStyle} />
+            <FormField label="Contact" htmlFor="ef-contact">
+                <input id="ef-contact" value={state.contact} onChange={set('contact')} placeholder="Name or email" style={inputStyle} />
             </FormField>
 
             {/* Geo */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                <FormField label="Latitude">
-                    <input type="number" step="any" value={state.geo_lat} onChange={set('geo_lat')}
+                <FormField label="Latitude" htmlFor="ef-geo-lat">
+                    <input id="ef-geo-lat" type="number" step="any" value={state.geo_lat} onChange={set('geo_lat')}
                         placeholder="37.386" style={inputStyle} />
                 </FormField>
-                <FormField label="Longitude">
-                    <input type="number" step="any" value={state.geo_lon} onChange={set('geo_lon')}
+                <FormField label="Longitude" htmlFor="ef-geo-lon">
+                    <input id="ef-geo-lon" type="number" step="any" value={state.geo_lon} onChange={set('geo_lon')}
                         placeholder="-122.083" style={inputStyle} />
                 </FormField>
             </div>
 
             {/* RRULE */}
-            <FormField label="Recurrence rule (RRULE)">
-                <input value={state.rrule} onChange={set('rrule')}
-                    placeholder="FREQ=WEEKLY;BYDAY=MO" style={inputStyle} />
-            </FormField>
+            <RRuleEditor
+                value={state.rrule}
+                onChange={rrule => onChange({ ...state, rrule })}
+                startDate={state.start_date || state.due_date}
+            />
 
-            {/* EXDATE */}
-            <FormField label="Excluded dates (comma-separated ISO)">
-                <input value={state.exdate} onChange={set('exdate')}
-                    placeholder="2025-12-25T00:00:00.000Z, …" style={inputStyle} />
-            </FormField>
+            {/* EXDATE — only shown when recurrence is active */}
+            {state.rrule && (
+                <ExdateEditor
+                    value={state.exdate}
+                    onChange={exdate => onChange({ ...state, exdate })}
+                />
+            )}
 
             {/* Alarms */}
             <div>
@@ -1092,6 +1135,15 @@ function EditForm({
 
 // ── View mode helpers ─────────────────────────────────────────────────────────
 
+const STATUS_LABELS: Record<string, string> = {
+    'COMPLETED':    'Completed',
+    'CANCELLED':    'Cancelled',
+    'IN-PROCESS':   'In Progress',
+    'NEEDS-ACTION': 'Needs Action',
+    'DRAFT':        'Draft',
+    'FINAL':        'Final',
+}
+
 function StatusBadge({ status }: { status: string }) {
     const colors: Record<string, string> = {
         'COMPLETED':    '#70c070',
@@ -1111,7 +1163,7 @@ function StatusBadge({ status }: { status: string }) {
             borderRadius:  '3px',
             padding:       '1px 5px',
         }}>
-            {status.replace('-', ' ')}
+            {STATUS_LABELS[status] ?? status}
         </span>
     )
 }
@@ -1128,10 +1180,420 @@ function isPast(iso: string): boolean {
     return new Date(iso) < new Date()
 }
 
+function humanizeRrule(rrule: string): string {
+    if (!rrule.trim()) return ''
+    const parts: Record<string, string> = {}
+    rrule.split(';').forEach(p => {
+        const eq = p.indexOf('=')
+        if (eq > 0) parts[p.slice(0, eq).toUpperCase()] = p.slice(eq + 1)
+    })
+    const freq = parts['FREQ']?.toUpperCase()
+    const freqMap: Record<string, [string, string]> = {
+        DAILY:   ['day',   'daily'],
+        WEEKLY:  ['week',  'weekly'],
+        MONTHLY: ['month', 'monthly'],
+        YEARLY:  ['year',  'yearly'],
+    }
+    if (!freq || !freqMap[freq]) return ''
+    const [unit, adverb] = freqMap[freq]
+    const interval = parts['INTERVAL'] ? parseInt(parts['INTERVAL']) : 1
+    let result = interval === 1
+        ? `Repeats ${adverb}`
+        : `Repeats every ${interval} ${unit}s`
+    if (parts['BYDAY']) {
+        if (freq === 'WEEKLY') {
+            const dayMap: Record<string, string> = { MO: 'Mon', TU: 'Tue', WE: 'Wed', TH: 'Thu', FR: 'Fri', SA: 'Sat', SU: 'Sun' }
+            const days = parts['BYDAY'].split(',').map(d => dayMap[d.toUpperCase()] ?? d).join(', ')
+            result += ` on ${days}`
+        } else if (freq === 'MONTHLY') {
+            const m = parts['BYDAY'].match(/^([+-]?\d+)([A-Za-z]{2})$/)
+            if (m) {
+                const pos = parseInt(m[1])
+                const dayNames: Record<string, string> = { MO: 'Monday', TU: 'Tuesday', WE: 'Wednesday', TH: 'Thursday', FR: 'Friday', SA: 'Saturday', SU: 'Sunday' }
+                const ordinals = ['first', 'second', 'third', 'fourth', 'fifth']
+                const dName = dayNames[m[2].toUpperCase()] ?? m[2]
+                result += pos === -1 ? ` on the last ${dName}` : ` on the ${ordinals[pos - 1] ?? pos + 'th'} ${dName}`
+            }
+        }
+    }
+    if (parts['BYMONTHDAY'] && freq === 'MONTHLY') result += ` on day ${parts['BYMONTHDAY']}`
+    if (parts['COUNT']) {
+        result += `, ${parts['COUNT']} time${parseInt(parts['COUNT']) !== 1 ? 's' : ''}`
+    } else if (parts['UNTIL']) {
+        const u = parts['UNTIL'].replace(/T.*$/, '')
+        const d = new Date(`${u.slice(0, 4)}-${u.slice(4, 6)}-${u.slice(6, 8)}`)
+        if (!isNaN(d.getTime()))
+            result += ` until ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
+    }
+    return result
+}
+
+function humanizeDuration(dur: string): string {
+    if (!dur) return ''
+    const m = dur.match(/^P(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)W)?(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?$/)
+    if (!m) return ''
+    const [years, months, weeks, days, hours, minutes, seconds] = m.slice(1).map(x => parseInt(x ?? '0') || 0)
+    const parts: string[] = []
+    if (years)   parts.push(`${years} yr${years !== 1 ? 's' : ''}`)
+    if (months)  parts.push(`${months} mo`)
+    if (weeks)   parts.push(`${weeks} wk${weeks !== 1 ? 's' : ''}`)
+    if (days)    parts.push(`${days} day${days !== 1 ? 's' : ''}`)
+    if (hours)   parts.push(`${hours} hr${hours !== 1 ? 's' : ''}`)
+    if (minutes) parts.push(`${minutes} min`)
+    if (seconds) parts.push(`${seconds} sec`)
+    return parts.join(' ')
+}
+
+// ── RRule editor ─────────────────────────────────────────────────────────────
+
+type RRuleFreq = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY'
+
+interface RRuleEditorState {
+    freq:         RRuleFreq
+    interval:     number
+    weekDays:     string[]
+    monthlyMode:  'day' | 'weekday'
+    monthlyValue: string
+    endMode:      'never' | 'on' | 'after'
+    endDate:      string
+    count:        number
+}
+
+const WEEK_DAYS: { code: string; label: string; name: string }[] = [
+    { code: 'MO', label: 'M', name: 'Monday' },
+    { code: 'TU', label: 'T', name: 'Tuesday' },
+    { code: 'WE', label: 'W', name: 'Wednesday' },
+    { code: 'TH', label: 'T', name: 'Thursday' },
+    { code: 'FR', label: 'F', name: 'Friday' },
+    { code: 'SA', label: 'S', name: 'Saturday' },
+    { code: 'SU', label: 'S', name: 'Sunday' },
+]
+
+function defaultRRuleEditorState(): RRuleEditorState {
+    return { freq: 'WEEKLY', interval: 1, weekDays: [], monthlyMode: 'day', monthlyValue: '', endMode: 'never', endDate: '', count: 30 }
+}
+
+function parseRRuleToState(rrule: string): RRuleEditorState {
+    if (!rrule.trim()) return defaultRRuleEditorState()
+    const parts: Record<string, string> = {}
+    rrule.split(';').forEach(p => {
+        const eq = p.indexOf('=')
+        if (eq > 0) parts[p.slice(0, eq).toUpperCase()] = p.slice(eq + 1)
+    })
+    const freqOptions: RRuleFreq[] = ['DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY']
+    const freq: RRuleFreq = freqOptions.includes(parts.FREQ as RRuleFreq) ? parts.FREQ as RRuleFreq : 'WEEKLY'
+    const interval = parseInt(parts.INTERVAL ?? '1') || 1
+    const byDayRaw = parts.BYDAY ? parts.BYDAY.split(',') : []
+    const weekDays = freq === 'WEEKLY' ? byDayRaw.map(d => d.toUpperCase()) : []
+    let monthlyMode: 'day' | 'weekday' = 'day'
+    let monthlyValue = parts.BYMONTHDAY ?? ''
+    if (freq === 'MONTHLY' && byDayRaw.length > 0 && /^[+-]?\d/.test(byDayRaw[0])) {
+        monthlyMode = 'weekday'
+        monthlyValue = byDayRaw[0].toUpperCase()
+    }
+    let endMode: 'never' | 'on' | 'after' = 'never'
+    let endDate = ''
+    let count = 30
+    if (parts.COUNT) {
+        endMode = 'after'; count = parseInt(parts.COUNT) || 30
+    } else if (parts.UNTIL) {
+        endMode = 'on'
+        const u = parts.UNTIL.replace(/T.*$/, '')
+        endDate = `${u.slice(0, 4)}-${u.slice(4, 6)}-${u.slice(6, 8)}`
+    }
+    return { freq, interval, weekDays, monthlyMode, monthlyValue, endMode, endDate, count }
+}
+
+function serializeRRuleState(s: RRuleEditorState): string {
+    const parts: string[] = [`FREQ=${s.freq}`]
+    if (s.interval > 1) parts.push(`INTERVAL=${s.interval}`)
+    if (s.freq === 'WEEKLY' && s.weekDays.length > 0) parts.push(`BYDAY=${s.weekDays.join(',')}`)
+    if (s.freq === 'MONTHLY') {
+        if (s.monthlyMode === 'day' && s.monthlyValue)     parts.push(`BYMONTHDAY=${s.monthlyValue}`)
+        if (s.monthlyMode === 'weekday' && s.monthlyValue) parts.push(`BYDAY=${s.monthlyValue}`)
+    }
+    if (s.endMode === 'after' && s.count > 0)  parts.push(`COUNT=${s.count}`)
+    else if (s.endMode === 'on' && s.endDate)  parts.push(`UNTIL=${s.endDate.replace(/-/g, '')}T000000Z`)
+    return parts.join(';')
+}
+
+function computeMonthlyOptions(startDate: string): Array<{ label: string; mode: 'day' | 'weekday'; value: string }> {
+    const d = startDate ? new Date(startDate) : new Date()
+    if (isNaN(d.getTime())) return []
+    const dayOfMonth = d.getDate()
+    const dayIdx  = d.getDay()
+    const dayCode = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'][dayIdx]
+    const dayName = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][dayIdx]
+    const occurrence  = Math.ceil(dayOfMonth / 7)
+    const ordinals    = ['first', 'second', 'third', 'fourth', 'fifth']
+    const daysInMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()
+    const isLast      = dayOfMonth + 7 > daysInMonth
+    const opts: Array<{ label: string; mode: 'day' | 'weekday'; value: string }> = [
+        { label: `Monthly on day ${dayOfMonth}`,                                       mode: 'day',     value: String(dayOfMonth) },
+        { label: `Monthly on the ${ordinals[occurrence - 1] ?? 'fifth'} ${dayName}`,  mode: 'weekday', value: `${occurrence}${dayCode}` },
+    ]
+    if (isLast) opts.push({ label: `Monthly on the last ${dayName}`, mode: 'weekday', value: `-1${dayCode}` })
+    return opts
+}
+
+function RRuleEditor({ value, onChange, startDate }: {
+    value:      string
+    onChange:   (rrule: string) => void
+    startDate?: string
+}) {
+    const [state, setState] = useState<RRuleEditorState>(() => parseRRuleToState(value))
+    const lastRef = useRef(value)
+
+    useEffect(() => {
+        if (value !== lastRef.current) {
+            setState(parseRRuleToState(value))
+            lastRef.current = value
+        }
+    }, [value])
+
+    const update = (next: Partial<RRuleEditorState>) => {
+        setState(prev => {
+            const merged = { ...prev, ...next }
+            const serialized = serializeRRuleState(merged)
+            lastRef.current = serialized
+            onChange(serialized)
+            return merged
+        })
+    }
+
+    const monthlyOptions = useMemo(() => computeMonthlyOptions(startDate ?? ''), [startDate])
+
+    const defaultEndDate = useMemo(() => {
+        const base = startDate ? new Date(startDate) : new Date()
+        const d = isNaN(base.getTime()) ? new Date() : new Date(base)
+        if (state.freq === 'DAILY')   d.setDate(d.getDate() + 30)
+        if (state.freq === 'WEEKLY')  d.setDate(d.getDate() + 91)
+        if (state.freq === 'MONTHLY') d.setMonth(d.getMonth() + 6)
+        if (state.freq === 'YEARLY')  d.setFullYear(d.getFullYear() + 5)
+        return d.toISOString().slice(0, 10)
+    }, [state.freq, startDate])
+
+    const isEnabled = value.trim() !== ''
+
+    const handleEnable = () => {
+        if (isEnabled) {
+            lastRef.current = ''
+            onChange('')
+        } else {
+            const next = defaultRRuleEditorState()
+            if (startDate) {
+                const d = new Date(startDate)
+                if (!isNaN(d.getTime())) {
+                    next.weekDays = [['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'][d.getDay()]]
+                    if (monthlyOptions.length > 0) {
+                        next.monthlyMode  = monthlyOptions[0].mode
+                        next.monthlyValue = monthlyOptions[0].value
+                    }
+                }
+            }
+            setState(next)
+            const serialized = serializeRRuleState(next)
+            lastRef.current = serialized
+            onChange(serialized)
+        }
+    }
+
+    return (
+        <div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: isEnabled ? '10px' : '0' }}>
+                <span style={labelStyle}>Recurrence</span>
+                <button onClick={handleEnable} style={addBtnStyle}>
+                    {isEnabled ? 'Remove' : '+ Add recurrence'}
+                </button>
+            </div>
+
+            {isEnabled && (
+                <div style={{
+                    background:    'var(--bg-raised)',
+                    border:        '1px solid var(--border)',
+                    borderRadius:  'var(--radius-md)',
+                    padding:       '14px 16px',
+                    display:       'flex',
+                    flexDirection: 'column',
+                    gap:           '16px',
+                }}>
+                    {/* Repeat every */}
+                    <div>
+                        <div style={rruleSectionLabelStyle}>Repeat every</div>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <input
+                                type="number" min={1} max={99} value={state.interval}
+                                onChange={e => { const n = parseInt(e.target.value); if (!isNaN(n) && n >= 1) update({ interval: n }) }}
+                                style={{ ...inputStyle, width: '60px', textAlign: 'center' }}
+                            />
+                            <select
+                                value={state.freq}
+                                onChange={e => {
+                                    const freq = e.target.value as RRuleFreq
+                                    const next: Partial<RRuleEditorState> = { freq }
+                                    if (freq === 'MONTHLY' && monthlyOptions.length > 0) {
+                                        next.monthlyMode  = monthlyOptions[0].mode
+                                        next.monthlyValue = monthlyOptions[0].value
+                                    }
+                                    if (freq === 'WEEKLY' && startDate && state.weekDays.length === 0) {
+                                        const d = new Date(startDate)
+                                        if (!isNaN(d.getTime())) next.weekDays = [['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'][d.getDay()]]
+                                    }
+                                    update(next)
+                                }}
+                                style={{ ...selectStyle, flex: 1 }}
+                            >
+                                <option value="DAILY">day</option>
+                                <option value="WEEKLY">week</option>
+                                <option value="MONTHLY">month</option>
+                                <option value="YEARLY">year</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    {/* Repeat on — weekly day toggles */}
+                    {state.freq === 'WEEKLY' && (
+                        <div>
+                            <div style={rruleSectionLabelStyle}>Repeat on</div>
+                            <div style={{ display: 'flex', gap: '5px' }}>
+                                {WEEK_DAYS.map(({ code, label, name }) => {
+                                    const active = state.weekDays.includes(code)
+                                    return (
+                                        <button
+                                            key={code} title={name}
+                                            onClick={() => update({ weekDays: active ? state.weekDays.filter(d => d !== code) : [...state.weekDays, code] })}
+                                            style={{
+                                                width: '32px', height: '32px', borderRadius: '50%', padding: 0,
+                                                border:     active ? '2px solid var(--accent)' : '1px solid var(--border)',
+                                                background: active ? 'var(--accent-glow)' : 'transparent',
+                                                color:      active ? 'var(--accent)' : 'var(--text-muted)',
+                                                fontSize: '11px', fontFamily: 'var(--font-ui)',
+                                                fontWeight: active ? 700 : 400, cursor: 'pointer',
+                                            }}
+                                        >{label}</button>
+                                    )
+                                })}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Repeat on — monthly dropdown */}
+                    {state.freq === 'MONTHLY' && (
+                        <div>
+                            <div style={rruleSectionLabelStyle}>Repeat on</div>
+                            <select
+                                value={`${state.monthlyMode}:${state.monthlyValue}`}
+                                onChange={e => {
+                                    const colonIdx = e.target.value.indexOf(':')
+                                    const mode = e.target.value.slice(0, colonIdx) as 'day' | 'weekday'
+                                    const val  = e.target.value.slice(colonIdx + 1)
+                                    update({ monthlyMode: mode, monthlyValue: val })
+                                }}
+                                style={selectStyle}
+                            >
+                                {monthlyOptions.map(opt => (
+                                    <option key={opt.value} value={`${opt.mode}:${opt.value}`}>{opt.label}</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
+
+                    {/* Ends */}
+                    <div>
+                        <div style={rruleSectionLabelStyle}>Ends</div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }} onClick={() => update({ endMode: 'never' })}>
+                                <RadioDot active={state.endMode === 'never'} />
+                                <span style={{ fontSize: '13px', color: 'var(--text-primary)' }}>Never</span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+                                <RadioDot active={state.endMode === 'on'} onClick={() => update({ endMode: 'on', endDate: state.endDate || defaultEndDate })} />
+                                <span style={{ fontSize: '13px', color: 'var(--text-primary)', minWidth: '30px' }} onClick={() => update({ endMode: 'on', endDate: state.endDate || defaultEndDate })}>On</span>
+                                <input
+                                    type="date"
+                                    value={state.endMode === 'on' ? state.endDate : ''}
+                                    disabled={state.endMode !== 'on'}
+                                    onChange={e => update({ endDate: e.target.value })}
+                                    onClick={() => { if (state.endMode !== 'on') update({ endMode: 'on', endDate: state.endDate || defaultEndDate }) }}
+                                    style={{ ...inputStyle, flex: 1, opacity: state.endMode === 'on' ? 1 : 0.35 }}
+                                />
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+                                <RadioDot active={state.endMode === 'after'} onClick={() => update({ endMode: 'after' })} />
+                                <span style={{ fontSize: '13px', color: 'var(--text-primary)', minWidth: '30px' }} onClick={() => update({ endMode: 'after' })}>After</span>
+                                <input
+                                    type="number" min={1} max={999}
+                                    value={state.endMode === 'after' ? state.count : ''}
+                                    disabled={state.endMode !== 'after'}
+                                    onChange={e => { const n = parseInt(e.target.value); if (!isNaN(n) && n >= 1) update({ count: n }) }}
+                                    onClick={() => { if (state.endMode !== 'after') update({ endMode: 'after' }) }}
+                                    style={{ ...inputStyle, width: '64px', textAlign: 'center', opacity: state.endMode === 'after' ? 1 : 0.35 }}
+                                />
+                                <span style={{ fontSize: '13px', color: state.endMode === 'after' ? 'var(--text-secondary)' : 'var(--text-muted)' }}>
+                                    occurrences
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    )
+}
+
+function RadioDot({ active, onClick }: { active: boolean; onClick?: () => void }) {
+    return (
+        <div
+            role="radio" aria-checked={active} tabIndex={0}
+            onClick={onClick}
+            onKeyDown={e => { if ((e.key === 'Enter' || e.key === ' ') && onClick) { e.preventDefault(); onClick() } }}
+            style={{
+                width: '16px', height: '16px', minWidth: '16px', borderRadius: '50%', flexShrink: 0,
+                border:     active ? '2px solid var(--accent)' : '2px solid var(--border)',
+                background: 'transparent', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+        >
+            {active && <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--accent)' }} />}
+        </div>
+    )
+}
+
+function ExdateEditor({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+    const dates = value.trim() ? value.split(',').map(d => d.trim()).filter(Boolean) : []
+    const toLocalDate = (iso: string) => { try { return new Date(iso).toISOString().slice(0, 10) } catch { return '' } }
+    const emit = (next: string[]) => onChange(next.join(', '))
+    return (
+        <div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: dates.length ? '8px' : '0' }}>
+                <span style={labelStyle}>Skip occurrences on</span>
+                <button onClick={() => emit([...dates, new Date().toISOString()])} style={addBtnStyle}>+ Add date</button>
+            </div>
+            {dates.map((iso, i) => (
+                <div key={i} style={{ display: 'flex', gap: '6px', alignItems: 'center', marginBottom: '6px' }}>
+                    <input
+                        type="date" value={toLocalDate(iso)}
+                        onChange={e => {
+                            if (!e.target.value) return
+                            const next = [...dates]; next[i] = e.target.value + 'T00:00:00.000Z'; emit(next)
+                        }}
+                        style={{ ...inputStyle, flex: 1 }}
+                    />
+                    <button onClick={() => emit(dates.filter((_, idx) => idx !== i))}
+                        style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '16px', padding: '0 4px', lineHeight: 1 }}>
+                        ×
+                    </button>
+                </div>
+            ))}
+        </div>
+    )
+}
+
 // ── Small helpers ─────────────────────────────────────────────────────────────
 
-function HeaderButton({ label, onClick, accent = false, danger = false, disabled = false, ariaLabel }: {
+function HeaderButton({ label, minWidth, onClick, accent = false, danger = false, disabled = false, ariaLabel }: {
     label:      string
+    minWidth?:  string
     onClick:    () => void
     accent?:    boolean
     danger?:    boolean
@@ -1150,14 +1612,18 @@ function HeaderButton({ label, onClick, accent = false, danger = false, disabled
             cursor:       disabled ? 'not-allowed' : 'pointer',
             lineHeight:   1,
             opacity:      disabled ? 0.4 : 1,
+            minWidth,
+            textAlign:    'center',
         }}>{label}</button>
     )
 }
 
-function FormField({ label, children }: { label: string; children: React.ReactNode }) {
+function FormField({ label, children, htmlFor }: { label: string; children: React.ReactNode; htmlFor?: string }) {
     return (
         <div>
-            <div style={labelStyle}>{label}</div>
+            <label htmlFor={htmlFor} style={{ ...labelStyle, display: 'block', cursor: htmlFor ? 'default' : undefined }}>
+                {label}
+            </label>
             {children}
         </div>
     )
@@ -1171,25 +1637,37 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
     )
 }
 
-function SubtaskRow({ subtask, onClick, onToggle }: { subtask: Entry; onClick: () => void; onToggle: () => void }) {
+function SubtaskRow({ subtask, onClick, onToggle, hasChildren }: { subtask: Entry; onClick: () => void; onToggle: () => void; hasChildren?: boolean }) {
     const isDone = (subtask.progress ?? 0) >= 100
         || subtask.status === 'COMPLETED'
         || subtask.status === 'CANCELLED'
     return (
         <div
+            role="button"
+            tabIndex={0}
             onClick={onClick}
+            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } }}
+            aria-label={subtask.title || 'Untitled subtask'}
             style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '5px 8px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-raised)', cursor: 'pointer' }}
             onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.background = 'var(--bg-hover)' }}
             onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.background = 'var(--bg-raised)' }}
         >
             <div
-                onClick={e => { e.stopPropagation(); onToggle() }}
+                role={hasChildren ? undefined : 'checkbox'}
+                aria-checked={hasChildren ? undefined : isDone}
+                aria-label={hasChildren ? 'Progress derived from subtasks' : isDone ? 'Mark incomplete' : 'Mark complete'}
+                title={hasChildren ? 'Completion is derived from subtasks' : undefined}
+                tabIndex={hasChildren ? -1 : 0}
+                onClick={e => { if (hasChildren) return; e.stopPropagation(); onToggle() }}
+                onKeyDown={e => { if (hasChildren) return; if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); e.preventDefault(); onToggle() } }}
                 style={{
                     width: '13px', height: '13px', minWidth: '13px', borderRadius: '50%',
                     border: `1.5px solid ${isDone ? 'var(--text-muted)' : 'var(--border-strong)'}`,
                     background: isDone ? 'var(--text-muted)' : 'transparent',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: '7px', color: 'var(--bg-base)', cursor: 'pointer',
+                    fontSize: '7px', color: 'var(--bg-base)',
+                    cursor: hasChildren ? 'default' : 'pointer',
+                    opacity: hasChildren ? 0.5 : 1,
                 }}
             >{isDone && '✓'}</div>
             <span className="truncate" style={{
@@ -1309,4 +1787,12 @@ const detailIconStyle: React.CSSProperties = {
     width:      '18px',
     color:      'var(--text-muted)',
     marginTop:  '1px',
+}
+
+const rruleSectionLabelStyle: React.CSSProperties = {
+    fontSize:      '10px',
+    color:         'var(--text-muted)',
+    letterSpacing: '0.06em',
+    textTransform: 'uppercase',
+    marginBottom:  '8px',
 }
