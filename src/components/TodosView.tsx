@@ -647,6 +647,20 @@ function DateFilter({ op, date, onChange }: {
     )
 }
 
+const inlineTitleInputStyle: React.CSSProperties = {
+    width:        '100%',
+    background:   'transparent',
+    border:       'none',
+    borderBottom: '1px solid var(--accent-dim)',
+    outline:      'none',
+    fontSize:     'inherit',
+    fontFamily:   'inherit',
+    fontWeight:   'inherit',
+    color:        'var(--text-primary)',
+    padding:      '0',
+    lineHeight:   'inherit',
+}
+
 function TodoRow({
     entry, isSelected, onClick, subtasks
 }: {
@@ -656,6 +670,17 @@ function TodoRow({
     subtasks:   Entry[]
 }) {
     const { setEntries } = useAppStore()
+    const [isEditingTitle, setIsEditingTitle] = useState(false)
+    const [titleDraft,     setTitleDraft]     = useState('')
+
+    const saveTitle = async () => {
+        setIsEditingTitle(false)
+        const trimmed = titleDraft.trim()
+        if (trimmed === (entry.title ?? '')) return
+        await window.api.entries.update(entry.id, { title: trimmed || null })
+        setEntries(await window.api.entries.getAll())
+    }
+
     const tags: string[] = (() => { try { return entry.categories ? JSON.parse(entry.categories) : [] } catch { return [] } })()
     const isDone  = entry.status === 'COMPLETED' || entry.status === 'CANCELLED'
     const dueDate = entry.due_date
@@ -741,17 +766,35 @@ function TodoRow({
                     gap:          '8px',
                     marginBottom: subtasks.length > 0 || tags.length > 0 ? '4px' : 0,
                 }}>
-                    <span style={{
-                        fontSize:       '14px',
-                        color:          'var(--text-primary)',
-                        fontWeight:     500,
-                        textDecoration: isDone ? 'line-through' : 'none',
-                        flex:           1,
-                    }}
-                        className="truncate"
+                    <div
+                        style={{ flex: 1, minWidth: 0, fontSize: '14px', fontWeight: 500 }}
+                        onClick={e => { e.stopPropagation(); setTitleDraft(entry.title ?? ''); setIsEditingTitle(true) }}
                     >
-                        {entry.title || 'Untitled'}
-                    </span>
+                        {isEditingTitle ? (
+                            <input
+                                autoFocus
+                                value={titleDraft}
+                                onChange={e => setTitleDraft(e.target.value)}
+                                onBlur={saveTitle}
+                                onClick={e => e.stopPropagation()}
+                                onKeyDown={e => {
+                                    e.stopPropagation()
+                                    if (e.key === 'Enter')  { e.preventDefault(); saveTitle() }
+                                    if (e.key === 'Escape') { setIsEditingTitle(false) }
+                                }}
+                                style={inlineTitleInputStyle}
+                            />
+                        ) : (
+                            <span className="truncate" style={{
+                                color:          'var(--text-primary)',
+                                textDecoration: isDone ? 'line-through' : 'none',
+                                cursor:         'text',
+                                display:        'block',
+                            }}>
+                                {entry.title || 'Untitled'}
+                            </span>
+                        )}
+                    </div>
 
                     {/* Priority dot — size encodes level: high=6px, medium=5px, low=4px */}
                     {entry.priority != null && entry.priority > 0 && !isDone && (

@@ -3,6 +3,20 @@ import { useAppStore } from '../store/app.ts'
 import type { Entry } from '../../shared/types'
 import { NewButton, Empty } from './shared'
 
+const inlineTitleInputStyle: React.CSSProperties = {
+    width:        '100%',
+    background:   'transparent',
+    border:       'none',
+    borderBottom: '1px solid var(--accent-dim)',
+    outline:      'none',
+    fontSize:     'inherit',
+    fontFamily:   'inherit',
+    fontWeight:   'inherit',
+    color:        'var(--text-primary)',
+    padding:      '0',
+    lineHeight:   'inherit',
+}
+
 export function NotesView() {
     const { entries, selectedEntry, setSelectedEntry, setCreatingType, searchQuery, setSearchQuery, filterCollections } = useAppStore()
     const [sortOrder, setSortOrder] = useState<'updated' | 'created' | 'alpha'>(
@@ -171,6 +185,18 @@ function NoteCard({
     isSelected: boolean
     onClick:    () => void
 }) {
+    const { setEntries } = useAppStore()
+    const [isEditingTitle, setIsEditingTitle] = useState(false)
+    const [titleDraft,     setTitleDraft]     = useState('')
+
+    const saveTitle = async () => {
+        setIsEditingTitle(false)
+        const trimmed = titleDraft.trim()
+        if (trimmed === (note.title ?? '')) return
+        await window.api.entries.update(note.id, { title: trimmed || null })
+        setEntries(await window.api.entries.getAll())
+    }
+
     const tags: string[] = (() => { try { return note.categories ? JSON.parse(note.categories) : [] } catch { return [] } })()
 
     const preview = note.body
@@ -218,18 +244,35 @@ function NoteCard({
             }}
         >
             {/* Title */}
-            {note.title && (
-                <div style={{
-                    fontSize:   '14px',
-                    fontWeight: 500,
-                    color:      'var(--text-primary)',
-                    lineHeight: 1.3,
-                }}
-                     className="truncate"
-                >
-                    {note.title}
-                </div>
-            )}
+            <div
+                style={{ fontSize: '14px', fontWeight: 500, lineHeight: 1.3 }}
+                onClick={e => { e.stopPropagation(); setTitleDraft(note.title ?? ''); setIsEditingTitle(true) }}
+            >
+                {isEditingTitle ? (
+                    <input
+                        autoFocus
+                        value={titleDraft}
+                        onChange={e => setTitleDraft(e.target.value)}
+                        onBlur={saveTitle}
+                        onClick={e => e.stopPropagation()}
+                        onKeyDown={e => {
+                            e.stopPropagation()
+                            if (e.key === 'Enter')  { e.preventDefault(); saveTitle() }
+                            if (e.key === 'Escape') { setIsEditingTitle(false) }
+                        }}
+                        placeholder="Add title…"
+                        style={inlineTitleInputStyle}
+                    />
+                ) : note.title ? (
+                    <span className="truncate" style={{ color: 'var(--text-primary)', cursor: 'text', display: 'block' }}>
+                        {note.title}
+                    </span>
+                ) : (
+                    <span style={{ color: 'var(--text-muted)', fontStyle: 'italic', fontSize: '13px', cursor: 'text' }}>
+                        Add title…
+                    </span>
+                )}
+            </div>
 
             {/* Body preview */}
             {preview && (
@@ -284,6 +327,18 @@ function NoteListRow({
     isSelected: boolean
     onClick:    () => void
 }) {
+    const { setEntries } = useAppStore()
+    const [isEditingTitle, setIsEditingTitle] = useState(false)
+    const [titleDraft,     setTitleDraft]     = useState('')
+
+    const saveTitle = async () => {
+        setIsEditingTitle(false)
+        const trimmed = titleDraft.trim()
+        if (trimmed === (note.title ?? '')) return
+        await window.api.entries.update(note.id, { title: trimmed || null })
+        setEntries(await window.api.entries.getAll())
+    }
+
     const tags: string[] = (() => { try { return note.categories ? JSON.parse(note.categories) : [] } catch { return [] } })()
 
     // 3-tier title fallback: real title → first body line → 'Untitled'
@@ -368,16 +423,29 @@ function NoteListRow({
 
             {/* Content */}
             <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{
-                    fontSize:     '14px',
-                    fontWeight:   500,
-                    color:        titleColor,
-                    fontStyle:    titleFontStyle,
-                    marginBottom: '3px',
-                }}
-                     className="truncate"
+                <div
+                    style={{ fontSize: '14px', fontWeight: 500, marginBottom: '3px' }}
+                    onClick={e => { e.stopPropagation(); setTitleDraft(note.title ?? ''); setIsEditingTitle(true) }}
                 >
-                    {displayTitle}
+                    {isEditingTitle ? (
+                        <input
+                            autoFocus
+                            value={titleDraft}
+                            onChange={e => setTitleDraft(e.target.value)}
+                            onBlur={saveTitle}
+                            onClick={e => e.stopPropagation()}
+                            onKeyDown={e => {
+                                e.stopPropagation()
+                                if (e.key === 'Enter')  { e.preventDefault(); saveTitle() }
+                                if (e.key === 'Escape') { setIsEditingTitle(false) }
+                            }}
+                            style={inlineTitleInputStyle}
+                        />
+                    ) : (
+                        <span className="truncate" style={{ color: titleColor, fontStyle: titleFontStyle, cursor: 'text', display: 'block' }}>
+                            {displayTitle}
+                        </span>
+                    )}
                 </div>
                 {note.body && (
                     <div style={{

@@ -209,6 +209,10 @@ export function EntryDetail() {
     const [confirmingDelete, setConfirmingDelete] = useState(false)
     const [collections, setCollections] = useState<{ url: string; display_name: string | null }[]>([])
     const [selectedCollection, setSelectedCollection] = useState('')
+    const [autosaveStatus,    setAutosaveStatus]    = useState<'idle' | 'saving' | 'saved'>('idle')
+    const autosaveTimerRef       = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const autosaveStatusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const prevAutosaveFields     = useRef({ title: '', body: '', start_date: '', due_date: '', completed_date: '', comment: '' })
 
     const isCreating = creatingType !== null && selectedEntry === null
 
@@ -248,6 +252,51 @@ export function EntryDetail() {
         })
     }, [isCreating, deviceLocation])
 
+    // Clear autosave timer when switching entries
+    useEffect(() => {
+        if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current)
+        setAutosaveStatus('idle')
+    }, [selectedEntry?.id])
+
+    // Autosave title, body, dates, comment while in edit mode (debounced 800ms)
+    useEffect(() => {
+        if (!isEditing || !editState || !selectedEntry) return
+        const { title, body, start_date, due_date, completed_date, comment } = editState
+        const prev = prevAutosaveFields.current
+        if (
+            title          === prev.title &&
+            body           === prev.body &&
+            start_date     === prev.start_date &&
+            due_date       === prev.due_date &&
+            completed_date === prev.completed_date &&
+            comment        === prev.comment
+        ) return
+
+        if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current)
+        const entryId = selectedEntry.id
+        autosaveTimerRef.current = setTimeout(async () => {
+            setAutosaveStatus('saving')
+            await window.api.entries.update(entryId, {
+                title:          title          || null,
+                body:           body           || null,
+                start_date:     start_date     ? new Date(start_date).toISOString()     : null,
+                due_date:       due_date       ? new Date(due_date).toISOString()       : null,
+                completed_date: completed_date ? new Date(completed_date).toISOString() : null,
+                comment:        comment        || null,
+            })
+            prevAutosaveFields.current = { title, body, start_date, due_date, completed_date, comment }
+            const updated = await window.api.entries.getAll()
+            setEntries(updated)
+            const refreshed = updated.find(e => e.id === entryId)
+            if (refreshed) setSelectedEntry(refreshed)
+            setAutosaveStatus('saved')
+            if (autosaveStatusTimerRef.current) clearTimeout(autosaveStatusTimerRef.current)
+            autosaveStatusTimerRef.current = setTimeout(() => setAutosaveStatus('idle'), 2000)
+        }, 800)
+        return () => { if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isEditing, selectedEntry?.id, editState?.title, editState?.body, editState?.start_date, editState?.due_date, editState?.completed_date, editState?.comment])
+
     if (!selectedEntry && !isCreating) return null
 
     const subtasks = selectedEntry
@@ -256,11 +305,22 @@ export function EntryDetail() {
 
     const handleEdit = () => {
         if (!selectedEntry) return
-        setEditState(initEditState(selectedEntry))
+        const init = initEditState(selectedEntry)
+        setEditState(init)
+        prevAutosaveFields.current = {
+            title:          init.title,
+            body:           init.body,
+            start_date:     init.start_date,
+            due_date:       init.due_date,
+            completed_date: init.completed_date,
+            comment:        init.comment,
+        }
         setIsEditing(true)
     }
 
     const handleCancel = () => {
+        if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current)
+        setAutosaveStatus('idle')
         setIsEditing(false)
         setEditState(null)
     }
@@ -364,6 +424,7 @@ export function EntryDetail() {
 
     const handleSave = async () => {
         if (!editState || !selectedEntry) return
+        if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current)
         setSaving(true)
         const fields: Record<string, unknown> = { ...assembleFields(editState) }
         if (selectedEntry.type === 'todo') {
@@ -501,7 +562,7 @@ export function EntryDetail() {
                     ) : null}
                 </div>
 
-                <div style={{ display: 'flex', gap: '5px', flexShrink: 0 }}>
+                <div style={{ display: 'flex', gap: '5px', flexShrink: 0, alignItems: 'center' }}>
                     {isCreating ? (
                         <>
                             <HeaderButton label={saving ? '…' : 'Create'} minWidth="48px" onClick={handleCreate} accent disabled={!selectedCollection || saving} ariaLabel="Create entry" />
@@ -509,6 +570,11 @@ export function EntryDetail() {
                         </>
                     ) : isEditing ? (
                         <>
+                            {autosaveStatus !== 'idle' && (
+                                <span style={{ fontSize: '10px', color: 'var(--text-muted)', letterSpacing: '0.03em' }}>
+                                    {autosaveStatus === 'saving' ? 'Saving…' : '✓ Saved'}
+                                </span>
+                            )}
                             <HeaderButton label={saving ? '…' : 'Save'} minWidth="40px" onClick={handleSave} accent ariaLabel="Save changes" />
                             <HeaderButton label="Cancel" onClick={handleCancel} ariaLabel="Discard changes" />
                         </>

@@ -48,7 +48,7 @@ Items are grouped by priority. Agents assigned in parentheses where applicable.
 - [x] **Resizable panels** — Detail panel is drag-resizable (300–700px); width persisted to localStorage. Sidebar width is intentionally fixed.
 - [x] **Collections in sidebar** — Nextcloud collections listed in sidebar with color dot and display name; cached in localStorage for instant startup display
 - [x] **About / version info** — About section at the bottom of Settings; shows app name, version (from package.json), and author
-- [ ] **Autosave + inline editing** — Hard Edit/Save/Cancel cycle; professional apps autosave *(moved to Not in scope — requires rearchitecting EntryDetail)*
+- [x] **Autosave + inline editing** — Title editable inline in each list row (click title, blur/Enter saves, Escape cancels) without opening EntryDetail; in edit mode, title/body/dates/comment autosave with 800ms debounce (✓ Saved indicator)
 - [x] **Custom window titlebar** — Frameless window (`frame: false`); custom 32px TitleBar component with drag region, "JTX Desktop" label, and Win11-style min/max/close buttons; maximize state synced via IPC events
 - [x] **Detail panel open/close animation** — Panel slides in from the right on open and slides out on close (220ms cubic-bezier), consistent with sidebar transitions
 - [x] **Subtask toggle: non-leaf feedback** — Toggle circle on non-leaf subtasks now shows `cursor: default`, 50% opacity, and a tooltip explaining completion is derived from children

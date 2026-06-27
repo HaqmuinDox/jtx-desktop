@@ -3,6 +3,20 @@ import { useAppStore } from '../store/app.ts'
 import type { Entry } from '../../shared/types'
 import { NewButton, Empty } from './shared'
 
+const inlineTitleInputStyle: React.CSSProperties = {
+    width:        '100%',
+    background:   'transparent',
+    border:       'none',
+    borderBottom: '1px solid var(--accent-dim)',
+    outline:      'none',
+    fontSize:     'inherit',
+    fontFamily:   'inherit',
+    fontWeight:   'inherit',
+    color:        'var(--text-primary)',
+    padding:      '0',
+    lineHeight:   'inherit',
+}
+
 export function JournalsView() {
     const { entries, selectedEntry, setSelectedEntry, setCreatingType, searchQuery, setSearchQuery, filterCollections } = useAppStore()
     const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>(
@@ -147,6 +161,18 @@ function JournalRow({
     isSelected: boolean
     onClick:    () => void
 }) {
+    const { setEntries } = useAppStore()
+    const [isEditingTitle, setIsEditingTitle] = useState(false)
+    const [titleDraft,     setTitleDraft]     = useState('')
+
+    const saveTitle = async () => {
+        setIsEditingTitle(false)
+        const trimmed = titleDraft.trim()
+        if (trimmed === (entry.title ?? '')) return
+        await window.api.entries.update(entry.id, { title: trimmed || null })
+        setEntries(await window.api.entries.getAll())
+    }
+
     const date    = new Date(entry.start_date ?? entry.created_at)
     const dayNum  = date.toLocaleDateString('en-US', { day: '2-digit' })
     const dayName = date.toLocaleDateString('en-US', { weekday: 'short' })
@@ -230,16 +256,29 @@ function JournalRow({
 
             {/* Content */}
             <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{
-                    fontSize:     '14px',
-                    color:        titleColor,
-                    fontWeight:   500,
-                    fontStyle:    titleFontStyle,
-                    marginBottom: '3px',
-                }}
-                     className="truncate"
+                <div
+                    style={{ fontSize: '14px', fontWeight: 500, marginBottom: '3px' }}
+                    onClick={e => { e.stopPropagation(); setTitleDraft(entry.title ?? ''); setIsEditingTitle(true) }}
                 >
-                    {displayTitle}
+                    {isEditingTitle ? (
+                        <input
+                            autoFocus
+                            value={titleDraft}
+                            onChange={e => setTitleDraft(e.target.value)}
+                            onBlur={saveTitle}
+                            onClick={e => e.stopPropagation()}
+                            onKeyDown={e => {
+                                e.stopPropagation()
+                                if (e.key === 'Enter')  { e.preventDefault(); saveTitle() }
+                                if (e.key === 'Escape') { setIsEditingTitle(false) }
+                            }}
+                            style={inlineTitleInputStyle}
+                        />
+                    ) : (
+                        <span className="truncate" style={{ color: titleColor, fontStyle: titleFontStyle, cursor: 'text', display: 'block' }}>
+                            {displayTitle}
+                        </span>
+                    )}
                 </div>
 
                 {entry.body && (
