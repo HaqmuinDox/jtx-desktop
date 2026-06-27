@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { BookOpen, FileText, CheckSquare, Settings, Menu, Search } from 'lucide-react'
+import { BookOpen, FileText, CheckSquare, Settings, Menu, Search, X } from 'lucide-react'
 import { useAppStore, type Section } from '../store/app.ts'
 
 interface Collection {
@@ -141,39 +141,63 @@ export function Sidebar() {
 
                 {/* Expanded: input with icon inside */}
                 <div style={{
-                    position:      'relative',
                     opacity:       sidebarCollapsed ? 0 : 1,
                     transition:    contentTransition,
                     pointerEvents: sidebarCollapsed ? 'none' : 'auto',
                 }}>
-                    <Search size={13} aria-hidden="true" style={{
-                        position:      'absolute',
-                        left:          '9px',
-                        top:           '50%',
-                        transform:     'translateY(-50%)',
-                        color:         'var(--text-muted)',
-                        opacity:       0.5,
-                        pointerEvents: 'none',
-                    }} />
-                    <input
-                        type="search"
-                        placeholder="Search…"
-                        value={searchQuery}
-                        onChange={e => setSearchQuery(e.target.value)}
-                        tabIndex={sidebarCollapsed ? -1 : 0}
-                        style={{
-                            width:        '100%',
-                            background:   'var(--bg-raised)',
-                            border:       '1px solid var(--border)',
-                            borderRadius: 'var(--radius-md)',
-                            color:        'var(--text-primary)',
-                            fontFamily:   'var(--font-ui)',
-                            fontSize:     '12px',
-                            padding:      '7px 10px 7px 28px',
-                            outline:      'none',
-                            boxSizing:    'border-box',
-                        }}
-                    />
+                    <div style={{ position: 'relative' }}>
+                        <Search size={13} aria-hidden="true" style={{
+                            position:      'absolute',
+                            left:          '9px',
+                            top:           '50%',
+                            transform:     'translateY(-50%)',
+                            color:         'var(--text-muted)',
+                            opacity:       0.5,
+                            pointerEvents: 'none',
+                        }} />
+                        <input
+                            type="text"
+                            placeholder="Search…"
+                            value={searchQuery}
+                            onChange={e => setSearchQuery(e.target.value)}
+                            tabIndex={sidebarCollapsed ? -1 : 0}
+                            style={{
+                                width:        '100%',
+                                background:   'var(--bg-raised)',
+                                border:       '1px solid var(--border)',
+                                borderRadius: 'var(--radius-md)',
+                                color:        'var(--text-primary)',
+                                fontFamily:   'var(--font-ui)',
+                                fontSize:     '12px',
+                                padding:      '7px 28px 7px 28px',
+                                outline:      'none',
+                                boxSizing:    'border-box',
+                            }}
+                        />
+                        {searchQuery && (
+                            <button
+                                onClick={() => setSearchQuery('')}
+                                tabIndex={-1}
+                                aria-label="Clear search"
+                                style={{
+                                    position:    'absolute',
+                                    right:       '7px',
+                                    top:         '50%',
+                                    transform:   'translateY(-50%)',
+                                    background:  'none',
+                                    border:      'none',
+                                    padding:     '2px',
+                                    cursor:      'pointer',
+                                    color:       'var(--text-muted)',
+                                    display:     'flex',
+                                    alignItems:  'center',
+                                    lineHeight:  1,
+                                }}
+                            >
+                                <X size={13} />
+                            </button>
+                        )}
+                    </div>
                     {searchQuery && (
                         <div style={{
                             fontSize:      '10px',
@@ -184,7 +208,7 @@ export function Sidebar() {
                             Searching in {
                                 activeSection === 'journals' ? 'Journals' :
                                 activeSection === 'notes'    ? 'Notes'    : 'Tasks'
-                            }
+                        }
                         </div>
                     )}
                 </div>
