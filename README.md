@@ -21,15 +21,15 @@ Build a **desktop application** that mirrors the core functionality of jtx Board
 
 ## Tech Stack
 
-| Layer | Technology | Reason |
-|---|---|---|
-| Desktop shell | **Electron** | Cross-platform (Windows, Mac, Linux), full filesystem access, offline-capable |
-| UI framework | **React** | Component-based, large ecosystem, well-supported in Electron |
-| Local database | **SQLite** via `better-sqlite3` | Fast, serverless, file-based local persistence |
-| CalDAV client | **tsdav** (TypeScript/JS) | Handles CalDAV discovery, ETag diffing, and sync with Nextcloud |
-| iCal parser | **ical.js** | Parses and serializes `.ics` data (VJOURNAL, VTODO components) |
+| Layer            | Technology                        | Reason                                                                                     |
+|------------------|-----------------------------------|--------------------------------------------------------------------------------------------|
+| Desktop shell    | **Electron**                      | Cross-platform (Windows, Mac, Linux), full filesystem access, offline-capable              |
+| UI framework     | **React**                         | Component-based, large ecosystem, well-supported in Electron                               |
+| Local database   | **SQLite** via `better-sqlite3`   | Fast, serverless, file-based local persistence                                             |
+| CalDAV client    | **tsdav** (TypeScript/JS)         | Handles CalDAV discovery, ETag diffing, and sync with Nextcloud                            |
+| iCal parser      | **ical.js**                       | Parses and serializes `.ics` data (VJOURNAL, VTODO components)                             |
 | Rich text editor | **TipTap** (built on ProseMirror) | Supports both rich text and Markdown; content stored as Markdown in iCal DESCRIPTION field |
-| Language | **TypeScript** | Type safety across the entire stack |
+| Language         | **TypeScript**                    | Type safety across the entire stack                                                        |
 
 ---
 
@@ -39,7 +39,7 @@ The app manages three types of content, directly mirroring jtx Board and the iCa
 
 ### 1. Journal (`VJOURNAL` with `DTSTART`)
 - A date-stamped entry: diary entries, meeting minutes, daily logs
-- Has a start date (auto-populated)
+- Has a start date (autopopulated)
 - Displayed in a chronological timeline view
 - Can be linked to ToDos
 
@@ -65,11 +65,11 @@ This is the foundation of jtx Board interoperability. Every rule here must be re
 
 ### Component Mapping
 
-| App concept | iCal component | Distinguishing rule |
-|---|---|---|
-| Journal | `VJOURNAL` | Has `DTSTART` field set |
-| Note | `VJOURNAL` | `DTSTART` is absent |
-| ToDo | `VTODO` | Separate component type |
+| App concept | iCal component | Distinguishing rule     |
+|-------------|----------------|-------------------------|
+| Journal     | `VJOURNAL`     | Has `DTSTART` field set |
+| Note        | `VJOURNAL`     | `DTSTART` is absent     |
+| ToDo        | `VTODO`        | Separate component type |
 
 ### Key iCal Fields Used
 
