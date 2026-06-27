@@ -37,4 +37,7 @@ npm-debug.log*
 *.db-shm
 *.db-wal
 
-CLAUDE.md.claude/
+CLAUDE.md
+
+# Claude Code internal files — worktrees, memory, job state
+.claude/
