@@ -285,10 +285,14 @@ export function EntryDetail() {
                 comment:        comment        || null,
             })
             prevAutosaveFields.current = { title, body, start_date, due_date, completed_date, comment }
-            const updated = await window.api.entries.getAll()
-            setEntries(updated)
-            const refreshed = updated.find(e => e.id === entryId)
-            if (refreshed) setSelectedEntry(refreshed)
+            // Autosave only touches this one entry, so refresh just its row
+            // instead of reloading every entry on each keystroke pause. Read
+            // live store state so a background sync can't be clobbered.
+            const refreshed = await window.api.entries.getById(entryId) as Entry | undefined
+            if (refreshed) {
+                setEntries(useAppStore.getState().entries.map(e => e.id === entryId ? refreshed : e))
+                setSelectedEntry(refreshed)
+            }
             setAutosaveStatus('saved')
             if (autosaveStatusTimerRef.current) clearTimeout(autosaveStatusTimerRef.current)
             autosaveStatusTimerRef.current = setTimeout(() => setAutosaveStatus('idle'), 2000)
