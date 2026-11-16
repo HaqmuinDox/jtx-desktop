@@ -1,11 +1,20 @@
 import { useState, useEffect } from 'react'
 import { BookOpen, FileText, CheckSquare, Settings, Menu, Search, X } from 'lucide-react'
 import { useAppStore, type Section } from '../store/app.ts'
+import type { CollectionType, EntryType } from '../../shared/types'
+import { collectionSupports } from '../utils/collections'
 
 interface Collection {
     url:          string
     display_name: string | null
     color:        string | null
+    type:         CollectionType | null
+}
+
+const SECTION_ENTRY_TYPE: Partial<Record<Section, EntryType>> = {
+    journals: 'journal',
+    notes:    'note',
+    todos:    'todo',
 }
 
 type NavItem = { section: Section; label: string; Icon: React.ElementType }
@@ -282,7 +291,10 @@ export function Sidebar() {
                     }}>
                         Collections
                     </div>
-                    {collections.map(c => {
+                    {(SECTION_ENTRY_TYPE[activeSection]
+                        ? collections.filter(c => collectionSupports(c.type, SECTION_ENTRY_TYPE[activeSection]!))
+                        : collections
+                    ).map(c => {
                         const isActive = filterCollections.has(c.url)
                         return (
                             <button

@@ -3,7 +3,8 @@ import ReactMarkdown from 'react-markdown'
 import { MapPin, Link, User, Map, Timer, Bell } from 'lucide-react'
 import {DeviceLocation, useAppStore} from '../store/app'
 import { EntryEditor } from './EntryEditor'
-import type { Entry, AlarmObject } from '../../shared/types'
+import type { Entry, AlarmObject, Collection } from '../../shared/types'
+import { collectionSupports } from '../utils/collections'
 
 // ── Entry defaults (persisted across sessions) ────────────────────────────────
 
@@ -207,7 +208,7 @@ export function EntryDetail() {
     const [editState, setEditState] = useState<EditState | null>(null)
     const [saving,    setSaving]    = useState(false)
     const [confirmingDelete, setConfirmingDelete] = useState(false)
-    const [collections, setCollections] = useState<{ url: string; display_name: string | null }[]>([])
+    const [collections, setCollections] = useState<Collection[]>([])
     const [selectedCollection, setSelectedCollection] = useState('')
     const [autosaveStatus,    setAutosaveStatus]    = useState<'idle' | 'saving' | 'saved'>('idle')
     const autosaveTimerRef       = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -222,17 +223,21 @@ export function EntryDetail() {
             const defaults = loadEntryDefaults()
             setEditState(initBlankEditState(creatingType, defaults ?? undefined, deviceLocation))
 
+            const ct = creatingType
             window.api.collections.getAll().then(cols => {
-                const typed = cols as { url: string; display_name: string | null }[]
+                const typed = cols as Collection[]
                 setCollections(typed)
                 if (creatingParentCollection) {
                     // Subtasks must live in the same collection as their parent.
                     setSelectedCollection(creatingParentCollection)
                 } else {
+                    // Only collections that can actually hold this entry type —
+                    // picking an unsupported one drops the entry on the server.
+                    const capable = typed.filter(c => collectionSupports(c.type, ct))
                     const match = defaults?.collection
-                        ? typed.find(c => c.url === defaults.collection)
+                        ? capable.find(c => c.url === defaults.collection)
                         : null
-                    setSelectedCollection(match?.url ?? typed[0]?.url ?? '')
+                    setSelectedCollection(match?.url ?? capable[0]?.url ?? '')
                 }
             })
         }
@@ -285,10 +290,14 @@ export function EntryDetail() {
                 comment:        comment        || null,
             })
             prevAutosaveFields.current = { title, body, start_date, due_date, completed_date, comment }
-            const updated = await window.api.entries.getAll()
-            setEntries(updated)
-            const refreshed = updated.find(e => e.id === entryId)
-            if (refreshed) setSelectedEntry(refreshed)
+            // Autosave only touches this one entry, so refresh just its row
+            // instead of reloading every entry on each keystroke pause. Read
+            // live store state so a background sync can't be clobbered.
+            const refreshed = await window.api.entries.getById(entryId) as Entry | undefined
+            if (refreshed) {
+                setEntries(useAppStore.getState().entries.map(e => e.id === entryId ? refreshed : e))
+                setSelectedEntry(refreshed)
+            }
             setAutosaveStatus('saved')
             if (autosaveStatusTimerRef.current) clearTimeout(autosaveStatusTimerRef.current)
             autosaveStatusTimerRef.current = setTimeout(() => setAutosaveStatus('idle'), 2000)
@@ -496,6 +505,7 @@ export function EntryDetail() {
     }
 
     const currentType = isCreating ? creatingType! : selectedEntry!.type
+    const capableCollections = collections.filter(c => collectionSupports(c.type, currentType))
 
     return (
         <aside style={{
@@ -623,14 +633,14 @@ export function EntryDetail() {
                 {isCreating && editState ? (
                     <>
                         {/* Collection picker — hidden for subtasks (locked to parent's collection) */}
-                        {!creatingParentCollection && (collections.length > 0 ? (
+                        {!creatingParentCollection && (capableCollections.length > 0 ? (
                             <FormField label="Collection">
                                 <select
                                     value={selectedCollection}
                                     onChange={e => setSelectedCollection(e.target.value)}
                                     style={selectStyle}
                                 >
-                                    {collections.map(c => (
+                                    {capableCollections.map(c => (
                                         <option key={c.url} value={c.url}>
                                             {c.display_name || c.url}
                                         </option>
@@ -639,7 +649,9 @@ export function EntryDetail() {
                             </FormField>
                         ) : (
                             <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0 }}>
-                                No collections found — sync with Nextcloud first (Settings) to create a collection.
+                                {collections.length > 0
+                                    ? `No collection can hold ${currentType === 'todo' ? 'tasks' : currentType === 'journal' ? 'journal entries' : 'notes'}. Create or enable a matching calendar in Nextcloud, then sync.`
+                                    : 'No collections found — sync with Nextcloud first (Settings) to create a collection.'}
                             </p>
                         ))}
                         <EditForm

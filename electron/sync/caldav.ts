@@ -17,7 +17,16 @@ export interface RawCalDavEntry {
 
 // ── Client factory ────────────────────────────────────────────────────────────
 
+// createDAVClient logs in and discovers the account (several round-trips). Every
+// helper below used to call it, so one sync pushing N entries paid that cost N
+// times. Basic auth is stateless (credentials ride every request, nothing to
+// expire), so we cache the client and only rebuild it when credentials change.
+let cachedClient: { key: string; client: Awaited<ReturnType<typeof createDAVClient>> } | null = null
+
 async function makeClient(creds: CalDavCredentials) {
+    const key = `${creds.serverUrl}\u0000${creds.username}\u0000${creds.password}`
+    if (cachedClient && cachedClient.key === key) return cachedClient.client
+
     let parsed: URL
     try {
         parsed = new URL(creds.serverUrl)
@@ -42,6 +51,7 @@ async function makeClient(creds: CalDavCredentials) {
         authMethod:         'Basic',
         defaultAccountType: 'caldav',
     })
+    cachedClient = { key, client }
     return client
 }
 
@@ -60,13 +70,20 @@ export async function discoverCollections(
             const comps: string[] = cal.components ?? []
             return comps.includes('VJOURNAL') || comps.includes('VTODO')
         })
-        .map(cal => ({
-            url:          cal.url,
-            display_name: typeof cal.displayName === 'string' ? cal.displayName : null,
-            type:         inferCollectionType(cal.components ?? []),
-            ctag:  (cal as Record<string, unknown>).ctag  as string ?? null,
-            color: cal.calendarColor ?? null,
-        }))
+        .map(calendarToCollection)
+}
+
+// Coerce a raw tsdav calendar into our Collection shape. ctag/color/displayName
+// can arrive as non-strings (e.g. Framagenda returns ctag as `{}`); SQLite only
+// binds strings/numbers/buffers/null, so anything non-string becomes null.
+export function calendarToCollection(cal: DAVCalendar): Collection {
+    return {
+        url:          cal.url,
+        display_name: typeof cal.displayName === 'string' ? cal.displayName : null,
+        type:         inferCollectionType(cal.components ?? []),
+        ctag:  typeof (cal as Record<string, unknown>).ctag === 'string' ? (cal as Record<string, unknown>).ctag as string : null,
+        color: typeof cal.calendarColor === 'string' ? cal.calendarColor : null,
+    }
 }
 
 function inferCollectionType(components: string[]): 'journal' | 'todo' | 'mixed' {

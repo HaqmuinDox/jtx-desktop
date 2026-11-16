@@ -1,6 +1,19 @@
 import { vi } from 'vitest'
 import '@testing-library/jest-dom/vitest'
 
+// jsdom doesn't expose localStorage here, so provide an in-memory stub.
+const store = new Map<string, string>()
+const localStorageStub: Storage = {
+    get length() { return store.size },
+    key: (i: number) => [...store.keys()][i] ?? null,
+    getItem: (k: string) => store.get(k) ?? null,
+    setItem: (k: string, v: string) => { store.set(k, String(v)) },
+    removeItem: (k: string) => { store.delete(k) },
+    clear: () => { store.clear() },
+}
+Object.defineProperty(globalThis, 'localStorage', { writable: true, value: localStorageStub })
+Object.defineProperty(window, 'localStorage', { writable: true, value: localStorageStub })
+
 Object.defineProperty(window, 'matchMedia', {
     writable: true,
     value: (query: string) => ({

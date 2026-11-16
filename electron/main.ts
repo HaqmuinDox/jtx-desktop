@@ -1,5 +1,4 @@
 import { app, BrowserWindow, Menu, dialog, ipcMain, session } from 'electron'
-import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { getDb, closeDb } from './db'
@@ -8,7 +7,6 @@ import { setCredentials, startSyncInterval, sync } from './sync/engine'
 import { CalDavCredentials } from "./sync/caldav.ts";
 
 
-createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 // The built directory structure
@@ -20,6 +18,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 // │ │ ├── main.js
 // │ │ └── preload.mjs
 // │
+// On Linux, Electron's safeStorage reports "encryption unavailable" unless we
+// point it at a real keyring backend; libsecret covers GNOME Keyring / KWallet.
+if (process.platform === 'linux') app.commandLine.appendSwitch('password-store', 'gnome-libsecret')
+
 process.env.APP_ROOT = path.join(__dirname, '..')
 
 // 🚧 Use ['ENV_NAME'] avoid vite:define plugin - Vite@2.x
