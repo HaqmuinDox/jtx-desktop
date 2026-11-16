@@ -28,6 +28,9 @@ desktop.ini
 # TypeScript build info
 *.tsbuildinfo
 
+# Test coverage reports
+coverage/
+
 # Logs
 *.log
 npm-debug.log*
