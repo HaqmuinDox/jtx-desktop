@@ -74,6 +74,7 @@ export async function sync(): Promise<SyncStatus> {
         VALUES (@url, @display_name, @type, @ctag, @color)
         ON CONFLICT(url) DO UPDATE SET
           display_name = excluded.display_name,
+          type         = excluded.type,
           ctag         = excluded.ctag,
           color        = excluded.color
       `).run(col)
