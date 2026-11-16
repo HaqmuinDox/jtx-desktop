@@ -19,9 +19,12 @@ npm run build
 
 # Lint (strict — zero warnings allowed)
 npm run lint
+
+# Run tests (Vitest; jsdom for component/store, node for sync/util logic)
+npm test
 ```
 
-There is no test framework configured.
+Tests live in `src/__tests__/` and run under Vitest.
 
 ## Architecture
 
@@ -64,7 +67,7 @@ shared/types.ts    — Shared TypeScript types (Entry, Collection, SyncStatus) u
 - `window.api.sync` — `getStatus`, `now`, `setCredentials`, `testConnection`, `resetCache`, `getDirtyEntries`
 - `window.api.credentials` — `save`, `load`
 
-**Markdown in iCal.** Entry body is stored as Markdown in the iCal `DESCRIPTION` field. The editor (`EntryEditor.tsx`) uses Tiptap with StarterKit, which works in HTML internally. A custom `markdownToHtml` / `htmlToMarkdown` converter (in the same file) bridges the formats. This converter is intentionally simple — it handles the subset of Markdown that jtx Board supports, not the full spec.
+**Markdown in iCal.** Entry body is stored as Markdown in the iCal `DESCRIPTION` field. The editor (`EntryEditor.tsx`) uses Tiptap with StarterKit, which works in HTML internally. A custom `markdownToHtml` / `htmlToMarkdown` converter (in `src/utils/markdown.ts`) bridges the formats. This converter is intentionally simple — it handles the subset of Markdown that jtx Board supports, not the full spec.
 
 **Schema migrations.** New columns are added via `addColumnIfMissing()` in `db.ts`, never via `DROP`/`CREATE`. Always use this pattern to stay backwards-compatible with existing databases.
 
