@@ -29,10 +29,10 @@ declare global {
             }
             sync: {
                 getStatus:      () => Promise<{ state: string; last_synced_at: string | null; pending_changes: number }>
-                now:            () => Promise<{ state: string; last_synced_at: string | null }>
+                now:            () => Promise<{ state: string; last_synced_at: string | null; error_message?: string | null }>
                 setCredentials: (creds: Record<string, string>) => Promise<{ ok: boolean }>
                 testConnection: (creds: Record<string, string>) => Promise<{ ok: boolean; error?: string }>
-                resetCache:     () => Promise<{ ok: boolean }>
+                resetCache:     (opts?: { force?: boolean }) => Promise<{ ok: boolean; dirtyCount?: number; status?: { state: string; last_synced_at: string | null; error_message?: string | null } }>
                 setInterval:     (minutes: number) => Promise<void>
             }
             credentials: {

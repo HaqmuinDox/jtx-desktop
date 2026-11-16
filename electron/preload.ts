@@ -30,8 +30,8 @@ contextBridge.exposeInMainWorld('api', {
             ipcRenderer.invoke('sync:setCredentials', creds),
         testConnection: (creds: Record<string, string>) =>
             ipcRenderer.invoke('sync:testConnection', creds),
-        resetCache:      () =>
-            ipcRenderer.invoke('sync:resetCache'),
+        resetCache:      (opts?: { force?: boolean }) =>
+            ipcRenderer.invoke('sync:resetCache', opts),
         getDirtyEntries: () =>
             ipcRenderer.invoke('sync:getDirtyEntries'),
         setInterval:     (minutes: number) =>

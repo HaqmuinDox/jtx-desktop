@@ -190,7 +190,12 @@ async function syncCollection(col: Collection) {
 
     for (const obj of remoteObjects) {
         const parsed = parseIcs(obj.data, col.url, obj.etag)
-        if (!parsed || !parsed.id) continue
+        if (!parsed || !parsed.id) {
+            console.warn(
+                `sync: skipped ${obj.url} — ${!parsed ? 'no VJOURNAL/VTODO or unparseable' : 'missing UID'}`
+            )
+            continue
+        }
 
         const exists = db.prepare(
             'SELECT id, updated_at FROM entries WHERE id = ?'

@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAppStore } from '../store/app.ts'
 
 export function SyncBar() {
     const { isSyncing, setIsSyncing, lastSynced, setLastSynced } = useAppStore()
     const [pendingChanges, setPendingChanges] = useState(0)
     const [error, setError] = useState<string | null>(null)
+    const lastSeenSync = useRef<string | null>(null)
 
     useEffect(() => {
         // Poll sync status every 30 seconds
@@ -13,6 +14,14 @@ export function SyncBar() {
                 const status = await window.api.sync.getStatus()
                 setPendingChanges(status.pending_changes)
                 if (status.last_synced_at) setLastSynced(status.last_synced_at)
+                // A background/startup sync finished (timestamp advanced) → reload
+                // entries so pulled server changes actually appear in the UI.
+                if (status.last_synced_at && status.last_synced_at !== lastSeenSync.current) {
+                    if (lastSeenSync.current !== null) {
+                        useAppStore.getState().setEntries(await window.api.entries.getAll())
+                    }
+                    lastSeenSync.current = status.last_synced_at
+                }
             } catch (_e) {
                 // silently ignore — no credentials set yet
             }

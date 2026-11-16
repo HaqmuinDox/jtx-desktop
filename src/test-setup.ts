@@ -34,7 +34,7 @@ Object.defineProperty(window, 'api', {
             now:            vi.fn().mockResolvedValue(undefined),
             setCredentials: vi.fn().mockResolvedValue(undefined),
             testConnection: vi.fn().mockResolvedValue({ ok: true }),
-            resetCache:     vi.fn().mockResolvedValue(undefined),
+            resetCache:     vi.fn().mockResolvedValue({ ok: true, status: { state: 'idle', last_synced_at: null, error_message: null } }),
             getDirtyEntries:vi.fn().mockResolvedValue([]),
         },
         credentials: {

@@ -178,15 +178,27 @@ export function registerIpcHandlers() {
     })
 
     ipcMain.handle('sync:testConnection', async (_event, creds) => {
-        return await testConnection(creds)
+        const result = await testConnection(creds)
+        // Adopt validated creds so a later sync uses the same ones Test passed with
+        if (result.ok) setCredentials(creds)
+        return result
     })
 
-    // Clears all local ETags so the next sync re-fetches every entry from
-    // the server. Use this to pick up fields that were added after initial sync.
-    ipcMain.handle('sync:resetCache', () => {
-        const db = getDb()
-        db.prepare('UPDATE entries SET etag = NULL WHERE deleted = 0').run()
-        return { ok: true }
+    // Full reset: wipe all local data and repopulate from the server from
+    // scratch. Guards against silent data loss — if any entry has unsynced
+    // local changes (dirty=1: edits, new entries, or pending deletes), it
+    // refuses and returns the count so the UI can warn, unless force is set.
+    ipcMain.handle('sync:resetCache', async (_event, opts?: { force?: boolean }) => {
+        const db    = getDb()
+        const dirty = (db.prepare('SELECT COUNT(*) AS c FROM entries WHERE dirty = 1')
+            .get() as { c: number }).c
+        if (dirty > 0 && !opts?.force) {
+            return { ok: false, dirtyCount: dirty }
+        }
+        // entry_links has no FK; entries references collections, so drop in that order.
+        db.exec('DELETE FROM entry_links; DELETE FROM entries; DELETE FROM collections;')
+        const status = await sync()
+        return { ok: true, status }
     })
 
     // Returns entries that are marked dirty=1 (for diagnostics)

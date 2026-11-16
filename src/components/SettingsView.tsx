@@ -78,7 +78,7 @@ export function SettingsView() {
             const result = await window.api.sync.now()
             if (result.state === 'error') {
                 setStatus('error')
-                setMessage('Sync failed — check your credentials')
+                setMessage(result.error_message ?? 'Sync failed — check your credentials')
                 return
             }
             const entries = await window.api.entries.getAll()
@@ -301,23 +301,39 @@ export function SettingsView() {
                 {/* Reset sync cache */}
                 <div style={{ borderTop: '1px solid var(--border)', paddingTop: '24px', marginTop: '8px' }}>
                     <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '12px', lineHeight: 1.5 }}>
-                        Force a full re-download of all entries from the server. Use this if
-                        fields like location or geo coordinates are missing after an update.
+                        Wipe all local data and rebuild it from the server from scratch.
+                        Fixes duplicated calendars or missing fields. Unsynced local changes
+                        would be lost, so you'll be warned if any exist.
                     </p>
                     <ActionButton
                         label="Reset Sync Cache & Re-sync"
                         onClick={async () => {
                             setStatus('syncing')
-                            setMessage('Clearing cache and re-syncing all entries…')
+                            setMessage('Clearing local data and rebuilding from server…')
                             setIsSyncing(true)
                             try {
-                                await window.api.sync.resetCache()
-                                const result = await window.api.sync.now()
+                                let res = await window.api.sync.resetCache()
+                                if (!res.ok) {
+                                    const proceed = window.confirm(
+                                        `${res.dirtyCount} local change(s) haven't been synced to the server yet and will be lost (deletions may also reappear). Reset anyway?`
+                                    )
+                                    if (!proceed) {
+                                        setStatus('idle')
+                                        setMessage(null)
+                                        return
+                                    }
+                                    res = await window.api.sync.resetCache({ force: true })
+                                }
                                 const entries = await window.api.entries.getAll()
                                 setEntries(entries)
-                                if (result.last_synced_at) setLastSynced(result.last_synced_at)
-                                setStatus('ok')
-                                setMessage(`Re-sync complete — ${entries.length} entries loaded`)
+                                if (res.status?.last_synced_at) setLastSynced(res.status.last_synced_at)
+                                if (res.status?.state === 'error') {
+                                    setStatus('error')
+                                    setMessage(res.status.error_message ?? 'Re-sync failed')
+                                } else {
+                                    setStatus('ok')
+                                    setMessage(`Re-sync complete — ${entries.length} entries loaded`)
+                                }
                             } catch {
                                 setStatus('error')
                                 setMessage('Re-sync failed')
