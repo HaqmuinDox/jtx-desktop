@@ -20,6 +20,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 // │ │ ├── main.js
 // │ │ └── preload.mjs
 // │
+// On Linux, Electron's safeStorage reports "encryption unavailable" unless we
+// point it at a real keyring backend; libsecret covers GNOME Keyring / KWallet.
+if (process.platform === 'linux') app.commandLine.appendSwitch('password-store', 'gnome-libsecret')
+
 process.env.APP_ROOT = path.join(__dirname, '..')
 
 // 🚧 Use ['ENV_NAME'] avoid vite:define plugin - Vite@2.x
