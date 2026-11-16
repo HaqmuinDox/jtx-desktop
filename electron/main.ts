@@ -1,5 +1,4 @@
 import { app, BrowserWindow, Menu, dialog, ipcMain, session } from 'electron'
-import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { getDb, closeDb } from './db'
@@ -8,7 +7,6 @@ import { setCredentials, startSyncInterval, sync } from './sync/engine'
 import { CalDavCredentials } from "./sync/caldav.ts";
 
 
-createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 // The built directory structure
