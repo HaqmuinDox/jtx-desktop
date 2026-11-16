@@ -115,3 +115,26 @@ describe('htmlToMarkdown', () => {
         expect(htmlToMarkdown('<p>line one<br>line two</p>')).toBe('line one\nline two')
     })
 })
+
+describe('round-trip (markdown → html → markdown)', () => {
+    const roundTrip = (md: string) => htmlToMarkdown(markdownToHtml(md))
+
+    test('special characters survive a save and are not double-escaped', () => {
+        // Regression: markdownToHtml escapes & < > " ' ; htmlToMarkdown must
+        // reverse it, or the body gains an "amp;" layer on every save.
+        const md = 'Tom & Jerry < 5 & x="q" it\'s O\'clock'
+        expect(roundTrip(md)).toBe(md)
+    })
+
+    test('special characters are still stable after three saves', () => {
+        let md = 'a & b < c > d "e" \'f\''
+        for (let i = 0; i < 3; i++) md = roundTrip(md)
+        expect(md).toBe('a & b < c > d "e" \'f\'')
+    })
+
+    test('formatting and a list survive a round-trip', () => {
+        expect(roundTrip('**bold** and *italic* and `code`'))
+            .toBe('**bold** and *italic* and `code`')
+        expect(roundTrip('- Apple\n- Banana')).toBe('- Apple\n- Banana')
+    })
+})
