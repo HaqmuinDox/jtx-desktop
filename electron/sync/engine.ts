@@ -295,7 +295,14 @@ async function syncCollection(col: Collection) {
 // e.g. https://nextcloud.example.com/remote.php/dav/calendars/user/journal/abc-123.ics
 // → abc-123
 function extractIdFromUrl(url: string): string {
-    const parts   = url.split('/')
-    const filename = parts[parts.length - 1]
-    return filename.replace(/\.ics$/i, '')
+    const parts    = url.split('/')
+    const filename = parts[parts.length - 1].replace(/\.ics$/i, '')
+    // The server percent-encodes special characters in the filename; decode so
+    // the id matches the stored UID. Fall back to the raw name if a malformed
+    // escape would throw, so one bad URL can't break the whole collection sync.
+    try {
+        return decodeURIComponent(filename)
+    } catch {
+        return filename
+    }
 }
