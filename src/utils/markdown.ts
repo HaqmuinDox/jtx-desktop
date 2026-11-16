@@ -64,6 +64,14 @@ export function htmlToMarkdown(html: string): string {
         .replace(/<br\s*\/?>/g,             '\n')
         .replace(/<p>(.*?)<\/p>/g,          '$1\n\n')
         .replace(/<[^>]+>/g,                '')
+        // Reverse the escaping markdownToHtml applied, &amp; last so we don't
+        // turn "&amp;lt;" into "<". Without this, &/</>/"/' double-escape on
+        // every save (&amp; → &amp;amp; …) and corrupt the body on the server.
+        .replace(/&lt;/g,   '<')
+        .replace(/&gt;/g,   '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#0?39;/g, "'")
+        .replace(/&amp;/g,  '&')
         .replace(/\n{3,}/g,                 '\n\n')
         .trim()
 }
